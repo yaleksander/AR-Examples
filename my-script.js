@@ -3,6 +3,7 @@ var arToolkitSource, arToolkitContext;
 var markerRoot1, markerRoot2, sceneExport;
 var mesh1, mesh2, plane, sphere;
 var planeSize, virtualObjectHeight, light, helper;
+var px, py, count = 1;
 
 var ray   = new THREE.Raycaster();
 var mouse = new THREE.Vector2();
@@ -15,10 +16,16 @@ function initialize()
 	scene       = new THREE.Scene();
 	sceneExport = new THREE.Scene();
 
-	var ambientLight = new THREE.AmbientLight(0xffffff, 0.2);
-	light = new THREE.DirectionalLight(0xffffff, 0.8);
+	var ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
+	light = new THREE.DirectionalLight(0xffffff, 0.5);
 	light.castShadow = true;
 	scene.add(ambientLight);
+
+	const d = 10;
+	light.shadow.camera.left   = -d;
+	light.shadow.camera.right  =  d;
+	light.shadow.camera.top    =  d;
+	light.shadow.camera.bottom = -d;
 
 	// fov (degrees), aspect, near, far
 	//camera = new THREE.PerspectiveCamera(32, 16.0 / 9.0, 1, 1000);
@@ -28,7 +35,7 @@ function initialize()
 	sceneExport.add(camera);
 
 	helper = new THREE.DirectionalLightHelper(light, 0xFF8C00);
-	scene.add(new THREE.CameraHelper(camera));
+	//scene.add(new THREE.CameraHelper(camera));
 
 	renderer = new THREE.WebGLRenderer({
 		antialias: true,
@@ -66,23 +73,21 @@ function initialize()
 	arToolkitSource = new THREEx.ArToolkitSource({
 //		sourceType: 'webcam'
 //		sourceType: 'image', sourceUrl: 'my-images/hiro-test-01.png'
-		sourceType: 'image', sourceUrl: 'my-images/00015.jpg'
+		sourceType: 'image', sourceUrl: 'my-images/00001.jpg'
 	});
 
 	function onResize()
 	{
-/*
-		arToolkitSource.onResize()	
-		arToolkitSource.copySizeTo(renderer.domElement)	
-		if ( arToolkitContext.arController !== null )
+		//arToolkitSource.onResize()	
+		//arToolkitSource.copySizeTo(renderer.domElement)	
+		/*if ( arToolkitContext.arController !== null )
 		{
 			arToolkitSource.copySizeTo(arToolkitContext.arController.canvas)
-		}
-*/
+		}*/
 	}
 
 	arToolkitSource.init(function onReady(){
-//		onResize()
+		onResize()
 	});
 /*
 	// handle resize event
@@ -110,7 +115,7 @@ function initialize()
 	////////////////////////////////////////////////////////////
 
 	planeSize = 150;
-	virtualObjectHeight = 1;
+	virtualObjectHeight = 1.35;
 
 	const loader = new THREE.TextureLoader();
 	const path = "my-textures/cube/rubrik/";
@@ -126,10 +131,12 @@ function initialize()
 	// build markerControls
 	markerRoot1 = new THREE.Group();
 	markerRoot2 = new THREE.Group();
+	markerRoot3 = new THREE.Group();
 	scene.add(markerRoot1);
 	sceneExport.add(markerRoot2);
-	var markerControls1 = new THREEx.ArMarkerControls(arToolkitContext, markerRoot1, {
-		type: 'pattern', patternUrl: "data/hiro.patt",
+//	var markerControls1 = new THREEx.ArMarkerControls(arToolkitContext, markerRoot1, {
+	var markerControls1 = new THREEx.ArMarkerControls(arToolkitContext, markerRoot3, {
+		type: 'pattern', patternUrl: "data/kanji.patt",
 	});
 
 	var geometry1 = new THREE.CubeGeometry(virtualObjectHeight, virtualObjectHeight, virtualObjectHeight);
@@ -137,10 +144,16 @@ function initialize()
 		transparent: true,
 		opacity: 0.5,
 		side: THREE.DoubleSide,
-	}); 
-	mesh1 = new THREE.Mesh(geometry1, rubrik);
+	});
+	var material5 = new THREE.MeshStandardMaterial({
+		transparent: true,
+		color: 0x0088ff,
+		side: THREE.DoubleSide,
+	});
+	//mesh1 = new THREE.Mesh(geometry1, rubrik);
+	mesh1 = new THREE.Mesh(geometry1, material5);
 	mesh1.position.y = virtualObjectHeight / 2;
-	mesh1.castShadow = true;
+	//mesh1.castShadow = true;
 	
 	var material2 = new THREE.MeshBasicMaterial({
 		color: 0xffffff,
@@ -150,14 +163,16 @@ function initialize()
 	mesh2.position.y = virtualObjectHeight / 2;
 
 	var planeGeo = new THREE.PlaneGeometry(planeSize, planeSize);
-	var planeMat = new THREE.ShadowMaterial({
-		transparent: true,
-		opacity: 0.75,
+	var planeMat = new THREE.MeshPhongMaterial({
+//	var planeMat = new THREE.ShadowMaterial({
+		//transparent: true,
+		//opacity: 0.75,
+		color: 0x99ff33,
 		side: THREE.DoubleSide,
 	});
 	plane = new THREE.Mesh(planeGeo, planeMat);
 	plane.rotation.x = -Math.PI / 2;
-	plane.position.y = 0.1;
+	plane.position.y = -0.05;
 	plane.receiveShadow = true;
 
 	var sphereGeo = new THREE.SphereGeometry(0.2);
@@ -172,9 +187,31 @@ function initialize()
 	markerRoot1.add(plane);
 	markerRoot1.add(sphere);
 	markerRoot1.add(light);
-	markerRoot1.add(helper);
+//	markerRoot1.add(helper);
 
 	markerRoot2.add(mesh2);
+
+	var geometry3 = new THREE.CubeGeometry(virtualObjectHeight * 2, virtualObjectHeight * 2, virtualObjectHeight * 2);
+	var material3 = new THREE.MeshStandardMaterial({
+		color: 0xff0000,
+		side: THREE.DoubleSide,
+	}); 
+	var geometry4 = new THREE.CylinderGeometry(1, 1, virtualObjectHeight * 1.5, 32);
+	var material4 = new THREE.MeshStandardMaterial({
+		color: 0x0000ff,
+		side: THREE.DoubleSide,
+	}); 
+	mesh3 = new THREE.Mesh(geometry3, material3);
+	mesh4 = new THREE.Mesh(geometry4, material4);
+	mesh3.position.set(3, virtualObjectHeight,         5);
+	mesh4.position.set(2, virtualObjectHeight * 0.75, -4);
+	mesh3.castShadow = true;
+	mesh4.castShadow = true;
+	//mesh1.castShadow = true;
+	markerRoot1.add(mesh3);
+	//markerRoot1.add(mesh4);
+	camera.position.set(13, 10, 0);
+	camera.lookAt(mesh1.position);
 
 	document.addEventListener("mousedown", onDocumentMouseDown, false);
 }
@@ -182,67 +219,200 @@ function initialize()
 
 function onDocumentMouseDown(event)
 {
-	// the following line would stop any other event handler from firing
-	// (such as the mouse's TrackballControls)
+	// the following line would stop any other event handler from firing (such as the mouse's TrackballControls)
 	// event.preventDefault();
 
 	switch (event.button)
 	{
 		case 0: // left
-			if (mesh1.visible)
-			{
-				mouse.x =  ((event.clientX - renderer.domElement.offsetLeft) / renderer.domElement.clientWidth)  * 2 - 1;
-				mouse.y = -((event.clientY - renderer.domElement.offsetTop)  / renderer.domElement.clientHeight) * 2 + 1;
-				ray.setFromCamera(mouse, camera);
-				var i = ray.intersectObject(plane);
-				if (i.length > 0)
-				{
-/*
-					console.log(i);
-					console.log(i[0].point.x, i[0].point.y, i[0].point.z);
-					console.log(i[0].uv.x, i[0].uv.y);
-					console.log(plane.position.x, plane.position.y, plane.position.z);
-					console.log(ray);
-*/
-					sphere.position.x = plane.position.x + i[0].uv.x * planeSize - planeSize / 2;
-					sphere.position.y = plane.position.y;
-					sphere.position.z = plane.position.z - i[0].uv.y * planeSize + planeSize / 2;
-					var v = mesh1.position.clone();
-					v.y += virtualObjectHeight / 2;
-					v.add(new THREE.Vector3().subVectors(v, sphere.position);//.multiplyScalar(2));
-					light.position.set(v.x, v.y, v.z);
-					light.target = sphere;
-					helper.update();
-/*
-					console.log(v);
-					console.log(light);
-*/
-				}
-			}
+			changeImage2();
 			break;
 
 		case 1: // middle
-			count++;
-			if (count == 3 || count == 13)
-				count++;
-			else if (count > 4 && count < 11)
-				count = 12;
-			else if (count > 15)
-				count = 1;
-			arToolkitSource = new THREEx.ArToolkitSource({sourceType: "image", sourceUrl: "my-images/000" + (count < 10 ? "0" : "") + count + ".jpg"});
-			arToolkitSource.init(function onReady(){});
+			setShadowPos();
 			break;
 
 		case 2: // right
-			rendererExport.render(sceneExport, camera);
-			console.log(camera.position);
-			console.log(markerRoot1.position);
-			console.log(mesh2.position);
-//			setTimeout(teste, 5);
 			break;
 	}
 }
-var count = 1;
+
+
+function changeImage2()
+{
+	count++;
+	if (count > 6)
+		count = 1;
+	switch (count)
+	{
+		case 1:
+			light.position.set( -7,  9, -5);
+			camera.position.set(13, 10,  0);
+			break;
+
+		case 2:
+			light.position.set( -2,  4,  3);
+			camera.position.set(-5, 10, -9);
+			camera.lookAt(mesh1.position);
+			camera.position.set(-2,  8, -5);
+			break;
+
+		case 3:
+			light.position.set(  5,  9, -8);
+			camera.position.set(12, 10, -3);
+			break;
+
+		case 4:
+			light.position.set( 18,  8,  5);
+			camera.position.set( 0, 10, 10);
+			break;
+
+		case 5:
+			light.position.set( 16,  7, -9);
+			camera.position.set(10, 10, -5);
+			break;
+
+		case 6:
+			light.position.set( -7,  8,  7);
+			camera.position.set(-8, 10, -7);
+			break;
+	}
+	light.target = mesh1;
+//	camera.lookAt(mesh1.position);
+}
+
+
+function changeImage()
+{
+	count++;
+	if (count > 18)
+		count = 1;
+	arToolkitSource = new THREEx.ArToolkitSource({sourceType: "image", sourceUrl: "my-images/000" + (count < 10 ? "0" : "") + count + ".jpg"});
+	switch (count)
+	{
+		case  1:
+			px = 145;
+			py = 145;
+			break;
+
+		case  2:
+			px = 121;
+			py = 132;
+			break;
+
+		case  3:
+			px = 115;
+			py = 141;
+			break;
+
+		case  4:
+			px = 118;
+			py = 122;
+			break;
+
+		case  5:
+			px = 144;
+			py = 148;
+			break;
+
+		case  6:
+			px =  86;
+			py = 146;
+			break;
+
+		case  7:
+			px = 132;
+			py = 134;
+			break;
+
+		case  8:
+			px = 141;
+			py = 121;
+			break;
+
+		case  9:
+			px = 135;
+			py = 135;
+			break;
+
+		case 10:
+			px =  96;
+			py = 139;
+			break;
+
+		case 11:
+			px = 140;
+			py = 145;
+			break;
+
+		case 12:
+			px =  97;
+			py = 139;
+			break;
+
+		case 13:
+			px = 163;
+			py = 146;
+			break;
+
+		case 14:
+			px = 159;
+			py = 110;
+			break;
+
+		case 15:
+			px = 149;
+			py = 146;
+			break;
+
+		case 16:
+			px = 121;
+			py = 118;
+			break;
+
+		case 17:
+			px = 187;
+			py = 153;
+			break;
+
+		case 18:
+			px =  83;
+			py = 144;
+			break;
+	}
+	px = Math.round(px * 1.875 + 80);
+	py = Math.round(py * 1.875);
+	arToolkitSource.init(function onReady(){});
+}
+
+
+// por algum motivo a sombra não carrega corretamente junto com a imagem e a função setTimeout não ajuda
+function setShadowPos()
+{
+	mouse.x =  ((px - renderer.domElement.offsetLeft) / renderer.domElement.clientWidth)  * 2 - 1;
+	mouse.y = -((py - renderer.domElement.offsetTop)  / renderer.domElement.clientHeight) * 2 + 1;
+	ray.setFromCamera(mouse, camera);
+	var i = ray.intersectObject(plane);
+	if (i.length > 0)
+	{
+		var shadow_center  = new THREE.Vector3();
+		var mesh_top       = mesh1.position.clone();
+		var mesh_bottom    = mesh1.position.clone();
+		shadow_center.x    = plane.position.x + i[0].uv.x * planeSize - planeSize / 2;
+		shadow_center.y    = plane.position.y;
+		shadow_center.z    = plane.position.z - i[0].uv.y * planeSize + planeSize / 2;
+		mesh_top.y        += virtualObjectHeight / 2;
+		mesh_bottom.y      = plane.position.y;
+		var mesh_to_shadow = new THREE.Vector3().subVectors(shadow_center, mesh_bottom).multiplyScalar(1);
+		var light_pos      = mesh_top.clone().add(new THREE.Vector3().subVectors(mesh_top, mesh_to_shadow).multiplyScalar(1));
+		sphere.position.x  = mesh_to_shadow.x;
+		sphere.position.y  = mesh_to_shadow.y;
+		sphere.position.z  = mesh_to_shadow.z;
+		light.position.set(light_pos.x, light_pos.y, light_pos.z);
+		light.target = sphere;
+		helper.update();
+	}
+}
 
 
 function teste()
