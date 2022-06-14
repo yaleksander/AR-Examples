@@ -1,10 +1,11 @@
 var scene, camera, renderer, rendererExport, clock, deltaTime, totalTime;
 var arToolkitSource, arToolkitContext;
 var markerRoot1, markerRoot2, sceneExport;
-var mesh1, mesh2, plane, sphere;
+var mesh1, mesh2, plane, sphere, material2, material5, rubrik;
 var planeSize, virtualObjectHeight, light, helper;
 var px, py, count = 1;
-
+var mesh11, mesh12, mesh13, mesh14, mesh15, mesh16;
+var mesh21, mesh22, mesh23, mesh24, mesh25, mesh26;
 var ray   = new THREE.Raycaster();
 var mouse = new THREE.Vector2();
 
@@ -16,8 +17,8 @@ function initialize()
 	scene       = new THREE.Scene();
 	sceneExport = new THREE.Scene();
 
-	var ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
-	light = new THREE.DirectionalLight(0xffffff, 0.5);
+	var ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+	light = new THREE.DirectionalLight(0xffffff, 0.9);
 	light.castShadow = true;
 	scene.add(ambientLight);
 
@@ -119,7 +120,7 @@ function initialize()
 
 	const loader = new THREE.TextureLoader();
 	const path = "my-textures/cube/rubrik/";
-	const rubrik = [
+	rubrik = [
 		new THREE.MeshStandardMaterial({map: loader.load(path + "px.png")}),
 		new THREE.MeshStandardMaterial({map: loader.load(path + "py.png")}),
 		new THREE.MeshStandardMaterial({map: loader.load(path + "pz.png")}),
@@ -145,7 +146,7 @@ function initialize()
 		opacity: 0.5,
 		side: THREE.DoubleSide,
 	});
-	var material5 = new THREE.MeshStandardMaterial({
+	material5 = new THREE.MeshStandardMaterial({
 		transparent: true,
 		color: 0x0088ff,
 		side: THREE.DoubleSide,
@@ -155,12 +156,11 @@ function initialize()
 	mesh1.position.y = virtualObjectHeight / 2;
 	//mesh1.castShadow = true;
 	
-	var material2 = new THREE.MeshBasicMaterial({
+	material2 = new THREE.MeshBasicMaterial({
 		color: 0xffffff,
 		side: THREE.DoubleSide,
 	}); 
 	mesh2 = new THREE.Mesh(geometry1, material2);
-	mesh2.position.y = virtualObjectHeight / 2;
 
 	var planeGeo = new THREE.PlaneGeometry(planeSize, planeSize);
 	var planeMat = new THREE.MeshPhongMaterial({
@@ -185,33 +185,124 @@ function initialize()
 
 	markerRoot1.add(mesh1);
 	markerRoot1.add(plane);
-	markerRoot1.add(sphere);
+//	markerRoot1.add(sphere);
 	markerRoot1.add(light);
 //	markerRoot1.add(helper);
 
 	markerRoot2.add(mesh2);
 
-	var geometry3 = new THREE.CubeGeometry(virtualObjectHeight * 2, virtualObjectHeight * 2, virtualObjectHeight * 2);
-	var material3 = new THREE.MeshStandardMaterial({
+	var geometry3 = new THREE.SphereGeometry(virtualObjectHeight * 0.7, 32, 16);
+	var material3 = new THREE.MeshPhongMaterial({
 		color: 0xff0000,
 		side: THREE.DoubleSide,
 	}); 
-	var geometry4 = new THREE.CylinderGeometry(1, 1, virtualObjectHeight * 1.5, 32);
-	var material4 = new THREE.MeshStandardMaterial({
+	var geometry4 = new THREE.SphereGeometry(virtualObjectHeight * 0.9, 32, 16);
+	var material4 = new THREE.MeshPhongMaterial({
 		color: 0x0000ff,
 		side: THREE.DoubleSide,
 	}); 
+	var material6 = new THREE.MeshPhongMaterial({
+		color: 0xaa7722,
+		side: THREE.DoubleSide,
+	});
+	plane2 = new THREE.Mesh(planeGeo, material6);
+	plane2.rotation.y = 0.4;
+	plane2.position.set(0, 0, -15);
+	plane2.receiveShadow = true;
 	mesh3 = new THREE.Mesh(geometry3, material3);
 	mesh4 = new THREE.Mesh(geometry4, material4);
-	mesh3.position.set(3, virtualObjectHeight,         5);
-	mesh4.position.set(2, virtualObjectHeight * 0.75, -4);
+	mesh3.position.set( 3, 0, -6);
+	mesh4.position.set( 2, 0,  1);
+	mesh1.position.set(-1, 0,  4);
+	mesh3.position.y = virtualObjectHeight * 0.6;
+	mesh4.position.y = virtualObjectHeight * 0.4;
+	mesh1.position.y = virtualObjectHeight / 2;
+	mesh1.rotation.y = 0.2;
 	mesh3.castShadow = true;
 	mesh4.castShadow = true;
 	//mesh1.castShadow = true;
 	markerRoot1.add(mesh3);
-	//markerRoot1.add(mesh4);
-	camera.position.set(13, 10, 0);
-	camera.lookAt(mesh1.position);
+	markerRoot1.add(mesh4);
+	//markerRoot1.add(plane2);
+	light.position.set(6, 3, 4);
+	light.target = plane;
+	camera.position.set(0, 5, 9);
+	camera.lookAt(plane.position);
+	var geo1 = new THREE.CubeGeometry(virtualObjectHeight, virtualObjectHeight, virtualObjectHeight);
+	var geo3 = new THREE.TorusKnotGeometry(virtualObjectHeight * 0.4, virtualObjectHeight / 4, 128, 32);
+	var geo4 = new THREE.TorusGeometry(virtualObjectHeight * 0.4, virtualObjectHeight / 4, 32, 32);
+	var geo5 = new THREE.CylinderGeometry(virtualObjectHeight / 2, virtualObjectHeight / 2, virtualObjectHeight, 32);
+	var geo6 = new THREE.ConeGeometry(virtualObjectHeight / 2, virtualObjectHeight);
+	mesh11 = new THREE.Mesh(geo1, material5);
+	mesh12 = new THREE.Mesh(geo1, rubrik);
+	mesh13 = new THREE.Mesh(geo3, material5);
+	mesh14 = new THREE.Mesh(geo4, material5);
+	mesh15 = new THREE.Mesh(geo5, material5);
+	mesh16 = new THREE.Mesh(geo6, material5);
+	mesh21 = new THREE.Mesh(geo1, material2);
+	mesh22 = new THREE.Mesh(geo1, material2);
+	mesh23 = new THREE.Mesh(geo3, material2);
+	mesh24 = new THREE.Mesh(geo4, material2);
+	mesh25 = new THREE.Mesh(geo5, material2);
+	mesh26 = new THREE.Mesh(geo6, material2);
+	var x = mesh1.position.x;
+	var y = mesh1.position.y;
+	var z = mesh1.position.z;
+	mesh2.position.set(x, y, z);
+	mesh11.position.set(x, y, z);
+	mesh12.position.set(x, y, z);
+	mesh13.position.set(x, y, z);
+	mesh14.position.set(x, y, z);
+	mesh15.position.set(x, y, z);
+	mesh16.position.set(x, y, z);
+	mesh21.position.set(x, y, z);
+	mesh22.position.set(x, y, z);
+	mesh23.position.set(x, y, z);
+	mesh24.position.set(x, y, z);
+	mesh25.position.set(x, y, z);
+	mesh26.position.set(x, y, z);
+	x = mesh1.rotation.x;
+	y = mesh1.rotation.y;
+	z = mesh1.rotation.z;
+	mesh2.rotation.set(x, y, z);
+	mesh11.rotation.set(x, y, z);
+	mesh12.rotation.set(x, y, z);
+	mesh13.rotation.set(x, y, z);
+	mesh14.rotation.set(x, y, z);
+	mesh15.rotation.set(x, y, z);
+	mesh16.rotation.set(x, y, z);
+	mesh21.rotation.set(x, y, z);
+	mesh22.rotation.set(x, y, z);
+	mesh23.rotation.set(x, y, z);
+	mesh24.rotation.set(x, y, z);
+	mesh25.rotation.set(x, y, z);
+	mesh26.rotation.set(x, y, z);
+	markerRoot1.add(mesh11);
+	markerRoot1.add(mesh12);
+	markerRoot1.add(mesh13);
+	markerRoot1.add(mesh14);
+	markerRoot1.add(mesh15);
+	markerRoot1.add(mesh16);
+	markerRoot2.add(mesh21);
+	markerRoot2.add(mesh22);
+	markerRoot2.add(mesh23);
+	markerRoot2.add(mesh24);
+	markerRoot2.add(mesh25);
+	markerRoot2.add(mesh26);
+	mesh1.visible = false;
+	mesh11.visible = true;
+	mesh12.visible = false;
+	mesh13.visible = false;
+	mesh14.visible = false;
+	mesh15.visible = false;
+	mesh16.visible = false;
+	mesh2.visible = false;
+	mesh21.visible = true;
+	mesh22.visible = false;
+	mesh23.visible = false;
+	mesh24.visible = false;
+	mesh25.visible = false;
+	mesh26.visible = false;
 
 	document.addEventListener("mousedown", onDocumentMouseDown, false);
 }
@@ -243,42 +334,52 @@ function changeImage2()
 	count++;
 	if (count > 6)
 		count = 1;
+	mesh11.visible = false;
+	mesh12.visible = false;
+	mesh13.visible = false;
+	mesh14.visible = false;
+	mesh15.visible = false;
+	mesh16.visible = false;
+	mesh21.visible = false;
+	mesh22.visible = false;
+	mesh23.visible = false;
+	mesh24.visible = false;
+	mesh25.visible = false;
+	mesh26.visible = false;
 	switch (count)
 	{
 		case 1:
-			light.position.set( -7,  9, -5);
-			camera.position.set(13, 10,  0);
+			mesh11.visible = true;
+			mesh21.visible = true;
 			break;
 
 		case 2:
-			light.position.set( -2,  4,  3);
-			camera.position.set(-5, 10, -9);
-			camera.lookAt(mesh1.position);
-			camera.position.set(-2,  8, -5);
+			mesh12.visible = true;
+			mesh22.visible = true;
 			break;
 
 		case 3:
-			light.position.set(  5,  9, -8);
-			camera.position.set(12, 10, -3);
+			mesh13.visible = true;
+			mesh23.visible = true;
 			break;
 
 		case 4:
-			light.position.set( 18,  8,  5);
-			camera.position.set( 0, 10, 10);
+			mesh14.visible = true;
+			mesh24.visible = true;
 			break;
 
 		case 5:
-			light.position.set( 16,  7, -9);
-			camera.position.set(10, 10, -5);
+			mesh15.visible = true;
+			mesh25.visible = true;
 			break;
 
 		case 6:
-			light.position.set( -7,  8,  7);
-			camera.position.set(-8, 10, -7);
+			mesh16.visible = true;
+			mesh26.visible = true;
 			break;
 	}
-	light.target = mesh1;
-//	camera.lookAt(mesh1.position);
+	mesh2 = new THREE.Mesh(mesh1.geometry, material2);
+	camera.lookAt(plane.position);
 }
 
 
@@ -427,7 +528,10 @@ function teste()
 
 function update()
 {
-	// update cube position and orientation on second scene
+	// update mesh position and orientation on second scene
+	mesh2.position.set(mesh1.position.x, mesh1.position.y, mesh1.position.z);
+
+	// update scene position and orientation on second scene
 	markerRoot2.position.x = markerRoot1.position.x;
 	markerRoot2.position.y = markerRoot1.position.y;
 	markerRoot2.position.z = markerRoot1.position.z;
