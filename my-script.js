@@ -120,6 +120,7 @@ function initialize()
 
 	const loader = new THREE.TextureLoader();
 	const path = "my-textures/cube/rubrik/";
+/*
 	rubrik = [
 		new THREE.MeshStandardMaterial({map: loader.load(path + "px.png")}),
 		new THREE.MeshStandardMaterial({map: loader.load(path + "py.png")}),
@@ -128,6 +129,13 @@ function initialize()
 		new THREE.MeshStandardMaterial({map: loader.load(path + "ny.png")}),
 		new THREE.MeshStandardMaterial({map: loader.load(path + "nz.png")})
 	];
+*/
+	rubrik = new THREE.MeshStandardMaterial({map: loader.load("my-textures/face/wood.jpg")});
+	var texture = loader.load("my-textures/face/asphalt.jpg");
+	texture.wrapS = THREE.RepeatWrapping;
+	texture.wrapT = THREE.RepeatWrapping;
+	texture.repeat.set(20, 20);
+	var asphalt = new THREE.MeshPhongMaterial({map: texture});
 
 	// build markerControls
 	markerRoot1 = new THREE.Group();
@@ -170,7 +178,8 @@ function initialize()
 		color: 0x99ff33,
 		side: THREE.DoubleSide,
 	});
-	plane = new THREE.Mesh(planeGeo, planeMat);
+//	plane = new THREE.Mesh(planeGeo, planeMat);
+	plane = new THREE.Mesh(planeGeo, asphalt);
 	plane.rotation.x = -Math.PI / 2;
 	plane.position.y = -0.05;
 	plane.receiveShadow = true;
@@ -217,7 +226,7 @@ function initialize()
 	mesh3.position.y = virtualObjectHeight * 0.6;
 	mesh4.position.y = virtualObjectHeight * 0.4;
 	mesh1.position.y = virtualObjectHeight / 2;
-	mesh1.rotation.y = 0.2;
+	mesh1.rotation.y = 0.7;
 	mesh3.castShadow = true;
 	mesh4.castShadow = true;
 	//mesh1.castShadow = true;
@@ -332,7 +341,7 @@ function onDocumentMouseDown(event)
 function changeImage2()
 {
 	count++;
-	if (count > 6)
+	if (count > 7)
 		count = 1;
 	mesh11.visible = false;
 	mesh12.visible = false;
@@ -346,6 +355,8 @@ function changeImage2()
 	mesh24.visible = false;
 	mesh25.visible = false;
 	mesh26.visible = false;
+	mesh3.visible = true;
+	mesh4.visible = true;
 	switch (count)
 	{
 		case 1:
@@ -376,6 +387,11 @@ function changeImage2()
 		case 6:
 			mesh16.visible = true;
 			mesh26.visible = true;
+			break;
+
+		case 7:
+			mesh3.visible = false;
+			mesh4.visible = false;
 			break;
 	}
 	mesh2 = new THREE.Mesh(mesh1.geometry, material2);
