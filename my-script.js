@@ -130,12 +130,22 @@ function initialize()
 		new THREE.MeshStandardMaterial({map: loader.load(path + "nz.png")})
 	];
 */
-	rubrik = new THREE.MeshStandardMaterial({map: loader.load("my-textures/face/wood.jpg")});
-	var texture = loader.load("my-textures/face/asphalt.jpg");
-	texture.wrapS = THREE.RepeatWrapping;
-	texture.wrapT = THREE.RepeatWrapping;
-	texture.repeat.set(20, 20);
-	var asphalt = new THREE.MeshPhongMaterial({map: texture});
+	rubrik = new THREE.MeshStandardMaterial({map: loader.load("my-textures/face/wood.png")});
+	var tex1 = loader.load("my-textures/face/asphalt.png");
+	var tex2 = loader.load("my-textures/face/concrete.png");
+	var tex3 = loader.load("my-textures/face/marble.png");
+	tex1.wrapS = THREE.RepeatWrapping;
+	tex1.wrapT = THREE.RepeatWrapping;
+	tex1.repeat.set(20, 20);
+	tex2.wrapS = THREE.RepeatWrapping;
+	tex2.wrapT = THREE.RepeatWrapping;
+//	tex2.repeat.set(20, 20);
+	tex3.wrapS = THREE.RepeatWrapping;
+	tex3.wrapT = THREE.RepeatWrapping;
+//	tex3.repeat.set(20, 20);
+	var asphalt  = new THREE.MeshPhongMaterial({map: tex1});
+	var concrete = new THREE.MeshPhongMaterial({map: tex2});
+	var marble   = new THREE.MeshPhongMaterial({map: tex3});
 
 	// build markerControls
 	markerRoot1 = new THREE.Group();
@@ -159,8 +169,8 @@ function initialize()
 		color: 0x0088ff,
 		side: THREE.DoubleSide,
 	});
-	//mesh1 = new THREE.Mesh(geometry1, rubrik);
-	mesh1 = new THREE.Mesh(geometry1, material5);
+	mesh1 = new THREE.Mesh(geometry1, rubrik);
+	//mesh1 = new THREE.Mesh(geometry1, material5);
 	mesh1.position.y = virtualObjectHeight / 2;
 	//mesh1.castShadow = true;
 	
@@ -202,12 +212,14 @@ function initialize()
 
 	var geometry3 = new THREE.SphereGeometry(virtualObjectHeight * 0.7, 32, 16);
 	var material3 = new THREE.MeshPhongMaterial({
-		color: 0xff0000,
+//		color: 0xff0000,
+		map: tex2,
 		side: THREE.DoubleSide,
 	}); 
 	var geometry4 = new THREE.SphereGeometry(virtualObjectHeight * 0.9, 32, 16);
 	var material4 = new THREE.MeshPhongMaterial({
-		color: 0x0000ff,
+//		color: 0x0000ff,
+		map: tex3,
 		side: THREE.DoubleSide,
 	}); 
 	var material6 = new THREE.MeshPhongMaterial({
