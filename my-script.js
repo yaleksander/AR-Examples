@@ -4,8 +4,9 @@ var camera, renderer1, renderer2, renderer3
 var scene1, scene2, scene3;
 var emptyObj, vObj, vObjMask, shadowPlane, light, floor;
 
-var ray   = new THREE.Raycaster();
-var mouse = new THREE.Vector2();
+var ray    = new THREE.Raycaster();
+var mouse  = new THREE.Vector2();
+var loader = new THREE.TextureLoader();
 
 var planeSize, vObjHeight;
 
@@ -138,8 +139,6 @@ function initialize()
 	 *
 	 *********************************************************************************************/
 
-	var loader = new THREE.TextureLoader();
-
 	var tex1 = loader.load("my-textures/face/asphalt.png");
 	var tex2 = loader.load("my-textures/face/concrete.png");
 	var tex3 = loader.load("my-textures/face/marble.png");
@@ -153,6 +152,19 @@ function initialize()
 	var concrete = new THREE.MeshPhongMaterial({map: tex2});
 	var marble   = new THREE.MeshPhongMaterial({map: tex3});
 	var wood     = new THREE.MeshPhongMaterial({map: tex4});
+	var metal; // TODO
+
+	var path;
+
+	path = "my-textures/cube/rubrik/";
+	rubrik = [
+		new THREE.MeshStandardMaterial({map: loader.load(path + "px.png")}),
+		new THREE.MeshStandardMaterial({map: loader.load(path + "py.png")}),
+		new THREE.MeshStandardMaterial({map: loader.load(path + "pz.png")}),
+		new THREE.MeshStandardMaterial({map: loader.load(path + "nx.png")}),
+		new THREE.MeshStandardMaterial({map: loader.load(path + "ny.png")}),
+		new THREE.MeshStandardMaterial({map: loader.load(path + "nz.png")})
+	];
 
 	/**********************************************************************************************
 	 *
@@ -212,10 +224,13 @@ function initialize()
 	 *
 	 *********************************************************************************************/
 
-	var cube    = new THREE.CubeGeometry(vObjHeight, vObjHeight, vObjHeight);
-	var plane   = new THREE.PlaneGeometry(planeSize, planeSize, 150, 150);
-	var sphere1 = new THREE.SphereGeometry(vObjHeight * 0.7, 32, 16);
-	var sphere2 = new THREE.SphereGeometry(vObjHeight * 0.9, 32, 16);
+	var cube     = new THREE.CubeGeometry(vObjHeight, vObjHeight, vObjHeight);
+	var plane    = new THREE.PlaneGeometry(planeSize, planeSize, 150, 150);
+	var sphere1  = new THREE.SphereGeometry(vObjHeight * 0.7, 32, 16);
+	var sphere2  = new THREE.SphereGeometry(vObjHeight * 0.9, 32, 16);
+	var cube1    = new THREE.SphereGeometry(1, 2, 1);
+	var cube2    = new THREE.SphereGeometry(1, 2, 2);
+	var cylinder = new THREE.CylinderGeometry(1, 1, 2.5, 32);
 
 	/**********************************************************************************************
 	 *
@@ -242,7 +257,7 @@ function initialize()
 	stoneSphere1.position.set(  3,   0,  -6);
 	stoneSphere2.position.set(  2,   0,   1);
 	light.position.set       (  6,   3,   4);
-	camera.position.set      (  0,   9,  16);
+	camera.position.set      (  0,   9,  12);
 
 	camera.lookAt(floor.position);
 	light.target = floor;
@@ -298,12 +313,20 @@ function onDocumentMouseDown(event)
 	{
 		case 0: // left
 			//console.log(event.clientX, event.clientY);
-			//break;
+			vObj.visible = !vObj.visible;
+			vObjMask.visible = vObj.visible;
+			break;
 
 		case 1: // middle
-			var x =  42 * 2.5;
-			var y = 188 * 2.5 - 80;
-			setShadowPos(x, y);
+			var inpt = prompt("Ponto 2D:");
+			if (inpt != "")
+			{
+				i = inpt.split(" ");
+				setShadowPos(i[0], i[1]);
+				vObj.castShadow = true;
+			}
+			else
+				vObj.castShadow = false;
 			break;
 
 		case 2: // right
@@ -314,21 +337,23 @@ function onDocumentMouseDown(event)
 
 function setShadowPos(x, y)
 {
+	x *= 2.5;
+	y *= 2.5;
 	mouse.x =  ((x - renderer2.domElement.offsetLeft) / renderer2.domElement.clientWidth)  * 2 - 1;
 	mouse.y = -((y - renderer2.domElement.offsetTop)  / renderer2.domElement.clientHeight) * 2 + 1;
 	ray.setFromCamera(mouse, camera);
 	var i = ray.intersectObject(shadowPlane);
 	if (i.length > 0)
 	{
-		var meshTop = vObj.position.clone();
-		meshTop.y += vObjHeight / 2;
-		var atb = meshTop.clone().sub(i[0].point);
-		meshTop.add(atb.multiplyScalar(1));
-		light.position.set(meshTop.x, meshTop.y, meshTop.z);
-		emptyObj.position.set(i[0].point.x, i[0].point.y, i[0].point.z);
+		var p = i[0].point;
+		var top = vObj.position.clone();
+		top.y += vObjHeight / 2;
+		var atb = top.clone().sub(p);   // A to B
+		top.add(atb.multiplyScalar(1)); // multiplicar por um valor mais alto se necessário
+		light.position.set(top.x, top.y, top.z);
+		emptyObj.position.set(p.x, p.y, p.z);
 		light.target = emptyObj;
 	}
-	vObj.castShadow = true;
 }
 
 
