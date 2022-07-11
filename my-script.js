@@ -1,14 +1,16 @@
 var clock, deltaTime, totalTime;
 var arToolkitSource, arToolkitContext;
-var camera, renderer1, renderer2, renderer3
+var camera, renderer1, renderer2, renderer3;
 var scene1, scene2, scene3;
 var emptyObj, vObj, vObjMask, shadowPlane, light, floor;
 
 var ray    = new THREE.Raycaster();
 var mouse  = new THREE.Vector2();
 var loader = new THREE.TextureLoader();
+var canvas = document.createElement("canvas");
 
 var planeSize, vObjHeight;
+var mag;
 
 initialize();
 animate();
@@ -41,6 +43,7 @@ function initialize()
 	 *********************************************************************************************/
 
 	renderer1 = new THREE.WebGLRenderer({
+		preserveDrawingBuffer: true,
 		antialias: true,
 		alpha: true
 	});
@@ -53,6 +56,7 @@ function initialize()
 	document.body.appendChild(renderer1.domElement);
 
 	renderer2 = new THREE.WebGLRenderer({
+		preserveDrawingBuffer: true,
 		antialias: true,
 		alpha: true
 	});
@@ -65,6 +69,7 @@ function initialize()
 	document.body.appendChild(renderer2.domElement);
 
 	renderer3 = new THREE.WebGLRenderer({
+		preserveDrawingBuffer: true,
 		antialias: true,
 		alpha: true
 	});
@@ -143,20 +148,29 @@ function initialize()
 	var tex2 = loader.load("my-textures/face/concrete.png");
 	var tex3 = loader.load("my-textures/face/marble.png");
 	var tex4 = loader.load("my-textures/face/wood.png");
+	var tex5 = loader.load("my-textures/face/dark-metal.png");
+	var tex6 = loader.load("my-textures/face/grass.png");
+	var tex7 = loader.load("my-textures/face/stone.png");
 
 	tex1.wrapS = THREE.RepeatWrapping;
 	tex1.wrapT = THREE.RepeatWrapping;
 	tex1.repeat.set(20, 20);
+	tex6.wrapS = THREE.RepeatWrapping;
+	tex6.wrapT = THREE.RepeatWrapping;
+	tex6.repeat.set(20, 20);
+	tex7.wrapS = THREE.RepeatWrapping;
+	tex7.wrapT = THREE.RepeatWrapping;
+	tex7.repeat.set(20, 20);
 
 	var asphalt  = new THREE.MeshPhongMaterial({map: tex1});
 	var concrete = new THREE.MeshPhongMaterial({map: tex2});
 	var marble   = new THREE.MeshPhongMaterial({map: tex3});
 	var wood     = new THREE.MeshPhongMaterial({map: tex4});
-	var metal; // TODO
+	var metal    = new THREE.MeshPhongMaterial({map: tex5});
+	var grass    = new THREE.MeshPhongMaterial({map: tex6});
+	var stone    = new THREE.MeshPhongMaterial({map: tex7});
 
-	var path;
-
-	path = "my-textures/cube/rubrik/";
+	var path = "my-textures/cube/rubrik/";
 	rubrik = [
 		new THREE.MeshStandardMaterial({map: loader.load(path + "px.png")}),
 		new THREE.MeshStandardMaterial({map: loader.load(path + "py.png")}),
@@ -180,6 +194,18 @@ function initialize()
 	var shadowMat = new THREE.ShadowMaterial({
 		opacity: 0.75,
 		side: THREE.DoubleSide,
+	});
+
+	var lightMat = new THREE.MeshBasicMaterial({
+		color: 0x000000,
+		side: THREE.DoubleSide,
+		opacity: 0.15
+	});
+
+	var darkMat = new THREE.MeshBasicMaterial({
+		color: 0x000000,
+		side: THREE.DoubleSide,
+		opacity: 0.15
 	});
 
 	/**********************************************************************************************
@@ -212,7 +238,7 @@ function initialize()
 
 	light.castShadow = true;
 
-	var d = 10;
+	var d = vObjHeight * 10;
 	light.shadow.camera.left   = -d;
 	light.shadow.camera.right  =  d;
 	light.shadow.camera.top    =  d;
@@ -228,9 +254,9 @@ function initialize()
 	var plane    = new THREE.PlaneGeometry(planeSize, planeSize, 150, 150);
 	var sphere1  = new THREE.SphereGeometry(vObjHeight * 0.7, 32, 16);
 	var sphere2  = new THREE.SphereGeometry(vObjHeight * 0.9, 32, 16);
-	var cube1    = new THREE.SphereGeometry(1, 2, 1);
-	var cube2    = new THREE.SphereGeometry(1, 2, 2);
-	var cylinder = new THREE.CylinderGeometry(1, 1, 2.5, 32);
+	var cube1    = new THREE.CubeGeometry(1, 3, 1);
+	var cube2    = new THREE.CubeGeometry(1, 3, 2);
+	var cylinder = new THREE.CylinderGeometry(1, 1, 3, 32);
 
 	/**********************************************************************************************
 	 *
@@ -243,9 +269,15 @@ function initialize()
 	vObjMask    = new THREE.Mesh(cube,    maskMat);
 	shadowPlane = new THREE.Mesh(plane,   shadowMat);
 
-	var floor        = new THREE.Mesh(plane,   asphalt);
-	var stoneSphere1 = new THREE.Mesh(sphere1, marble);
-	var stoneSphere2 = new THREE.Mesh(sphere2, marble);
+	var floor         = new THREE.Mesh(plane,    asphalt);
+	var auxFloor      = new THREE.Mesh(plane,    lightMat);
+	var stoneSphere1  = new THREE.Mesh(sphere1,  marble);
+	var stoneSphere2  = new THREE.Mesh(sphere2,  marble);
+	var metalCylinder = new THREE.Mesh(cylinder, metal);
+	var woodCube      = new THREE.Mesh(cube2,    wood);
+	var stoneCube1    = new THREE.Mesh(cube1,    marble);
+	var stoneCube2    = new THREE.Mesh(cube1,    marble);
+	var rubrikCube    = new THREE.Mesh(cube,     rubrik);
 
 	/**********************************************************************************************
 	 *
@@ -253,28 +285,49 @@ function initialize()
 	 *
 	 *********************************************************************************************/
 
-	vObj.position.set        ( -1,   0,   4);
-	stoneSphere1.position.set(  3,   0,  -6);
-	stoneSphere2.position.set(  2,   0,   1);
-	light.position.set       (  6,   3,   4);
-	camera.position.set      (  0,   9,  12);
+	light.position.set        (  6,   3,   4);
+	//light.position.set        ( -6,   3,   2);
+	//light.position.set        (  4,   3,  -2);
+	vObj.position.set         ( -1,   0,   4);
+	//vObj.position.set         (  1,   0,   4);
+	//vObj.position.set         (  1,   0,   3);
+	stoneSphere1.position.set (  3,   0,  -6);
+	stoneSphere2.position.set (  2,   0,   1);
+	metalCylinder.position.set(  2,   1,   1);
+	woodCube.position.set     ( -2,   1,  -3);
+	rubrikCube.position.set   ( -2,   0,  -2);
+	stoneCube1.position.set   (  0,   1,  -4);
+	stoneCube2.position.set   (  2,   1,  -1);
+	camera.position.set       (  0,   9,  12);
 
 	camera.lookAt(floor.position);
 	light.target = floor;
+	mag = light.position.clone();
+	mag.y = 0;
 
-	vObj.rotation.y = 0.7;
+	vObj.rotation.y       =  0.7;
+	woodCube.rotation.y   = -0.3;
+	rubrikCube.rotation.y =  0.7;
+	stoneCube1.rotation.y =  0.1;
+	stoneCube2.rotation.y =  0.1;
 
-	floor.receiveShadow = true;
-	//floor.visible = false;
+	floor.receiveShadow       = true;
 	shadowPlane.receiveShadow = true;
-	stoneSphere1.castShadow = true;
-	stoneSphere2.castShadow = true;
-	//vObj.castShadow = false;
+	stoneSphere1.castShadow   = true;
+	stoneSphere2.castShadow   = true;
+	metalCylinder.castShadow  = true;
+	woodCube.castShadow       = true;
+	rubrikCube.castShadow     = true;
+	stoneCube1.castShadow     = true;
+	stoneCube2.castShadow     = true;
 
 	floor.rotation.x = -Math.PI / 2;
+	auxFloor.rotation.x = -Math.PI / 2;
 	shadowPlane.rotation.x = -Math.PI / 2;
 	floor.position.y = -0.05;
+	//auxFloor.position.y = -0.04;
 	vObj.position.y = vObjHeight / 2;
+	rubrikCube.position.y = vObjHeight / 2;
 	stoneSphere1.position.y = vObjHeight * 0.6;
 	stoneSphere2.position.y = vObjHeight * 0.4;
 	shadowPlane.position.y = floor.position.clone().y;
@@ -289,9 +342,15 @@ function initialize()
 	scene2.add(ambientLight.clone());
 
 	scene1.add(floor);
+	//scene1.add(auxFloor);
 	scene1.add(light.clone());
 	scene1.add(stoneSphere1);
 	scene1.add(stoneSphere2);
+//	scene1.add(metalCylinder);
+//	scene1.add(woodCube);
+//	scene1.add(rubrikCube);
+//	scene1.add(stoneCube1);
+//	scene1.add(stoneCube2);
 
 	scene2.add(vObj);
 	scene2.add(shadowPlane);
@@ -330,6 +389,7 @@ function onDocumentMouseDown(event)
 			break;
 
 		case 2: // right
+			teste();
 			break;
 	}
 }
@@ -348,22 +408,37 @@ function setShadowPos(x, y)
 		var p = i[0].point;
 		var top = vObj.position.clone();
 		top.y += vObjHeight / 2;
-		var atb = top.clone().sub(p);   // A to B
-		top.add(atb.multiplyScalar(1)); // multiplicar por um valor mais alto se necessário
+		var atb = p.clone().sub(top);   // A to B
+		top.add(atb.multiplyScalar(-1)); // multiplicar por um valor mais alto (mais baixo, já que é menor que 0) se necessário
 		light.position.set(top.x, top.y, top.z);
 		emptyObj.position.set(p.x, p.y, p.z);
 		light.target = emptyObj;
+		atb.y = 0;
+		alert(Math.round(100 * atb.angleTo(mag) * 180 / Math.PI) / 100);
 	}
 }
 
 
 function teste()
 {
-	var dataURL = renderer.domElement.toDataURL('image/png');
-	//var dataURL = document.getElementsByTagName("canvas")[0].toDataURL('image/png');
-	exportLink.href = dataURL;//.replace(/^data:image\/[^;]/, 'data:application/octet-stream');
-	exportLink.download = 'export.png';
+	var canvas = document.createElement("canvas");
+	canvas.width  = 640;
+	canvas.height = 640;
+	var ctx = canvas.getContext("2d");
+	ctx.drawImage(renderer1.domElement, 0, 0, 640, 640);
+	ctx.drawImage(renderer2.domElement, 0, 0, 640, 640);
+	exportLink.href = canvas.toDataURL('image/png');
+	exportLink.download = 'noshadow.png';
 	exportLink.click();
+
+	ctx.fillStyle = "black";
+	ctx.fillRect(0, 0, 640, 640);
+	ctx.drawImage(renderer3.domElement, 0, 0, 640, 640);
+	exportLink.href = canvas.toDataURL('image/png');
+	exportLink.download = 'mask.png';
+	exportLink.click();
+
+	canvas.remove();
 }
 
 
