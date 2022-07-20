@@ -3,6 +3,7 @@ var arToolkitSource, arToolkitContext;
 var camera, renderer1, renderer2, renderer3;
 var scene1, scene2, scene3;
 var emptyObj, vObj, vObjMask, shadowPlane, light, floor;
+var hlObj, hlPoint;
 
 var ray    = new THREE.Raycaster();
 var mouse  = new THREE.Vector2();
@@ -208,6 +209,21 @@ function initialize()
 		opacity: 0.15
 	});
 
+	var rMat = new THREE.MeshBasicMaterial({
+		color: 0xff0000,
+		side: THREE.DoubleSide
+	});
+
+	var gMat = new THREE.MeshBasicMaterial({
+		color: 0x00ff00,
+		side: THREE.DoubleSide
+	});
+
+	var bMat = new THREE.MeshBasicMaterial({
+		color: 0x0000ff,
+		side: THREE.DoubleSide
+	});
+
 	/**********************************************************************************************
 	 *
 	 * Cenas
@@ -254,6 +270,7 @@ function initialize()
 	var plane    = new THREE.PlaneGeometry(planeSize, planeSize, 150, 150);
 	var sphere1  = new THREE.SphereGeometry(vObjHeight * 0.7, 32, 16);
 	var sphere2  = new THREE.SphereGeometry(vObjHeight * 0.9, 32, 16);
+	var sphere3  = new THREE.SphereGeometry(0.2, 32, 16);
 	var cube1    = new THREE.CubeGeometry(1, 3, 1);
 	var cube2    = new THREE.CubeGeometry(1, 3, 2);
 	var cylinder = new THREE.CylinderGeometry(1, 1, 3, 32);
@@ -268,6 +285,9 @@ function initialize()
 	vObj        = new THREE.Mesh(cube,    wood);
 	vObjMask    = new THREE.Mesh(cube,    maskMat);
 	shadowPlane = new THREE.Mesh(plane,   shadowMat);
+
+	hlObj       = new THREE.Mesh(sphere3, rMat);
+	hlPoint     = new THREE.Mesh(sphere3, bMat);
 
 	var floor         = new THREE.Mesh(plane,    asphalt);
 	var auxFloor      = new THREE.Mesh(plane,    lightMat);
@@ -357,6 +377,9 @@ function initialize()
 	scene2.add(emptyObj);
 	scene2.add(light);
 
+	scene2.add(hlObj);
+	scene2.add(hlPoint);
+
 	scene3.add(vObjMask);
 
 	document.addEventListener("mousedown", onDocumentMouseDown, false);
@@ -380,8 +403,7 @@ function onDocumentMouseDown(event)
 			var inpt = prompt("Ponto 2D:");
 			if (inpt != "")
 			{
-				i = inpt.split(" ");
-				setShadowPos(i[0], i[1]);
+				setShadowPos(inpt.split(" "));
 				vObj.castShadow = true;
 			}
 			else
@@ -395,27 +417,88 @@ function onDocumentMouseDown(event)
 }
 
 
-function setShadowPos(x, y)
+function setShadowPos(list)
 {
-	x *= 2.5;
-	y *= 2.5;
-	mouse.x =  ((x - renderer2.domElement.offsetLeft) / renderer2.domElement.clientWidth)  * 2 - 1;
-	mouse.y = -((y - renderer2.domElement.offsetTop)  / renderer2.domElement.clientHeight) * 2 + 1;
-	ray.setFromCamera(mouse, camera);
-	var i = ray.intersectObject(shadowPlane);
-	if (i.length > 0)
+	var k = 0;
+	var res = [];
+	while (k < list.length)
 	{
-		var p = i[0].point;
-		var top = vObj.position.clone();
-		top.y += vObjHeight / 2;
-		var atb = p.clone().sub(top);   // A to B
-		top.add(atb.multiplyScalar(-1)); // multiplicar por um valor mais alto (mais baixo, já que é menor que 0) se necessário
-		light.position.set(top.x, top.y, top.z);
-		emptyObj.position.set(p.x, p.y, p.z);
-		light.target = emptyObj;
-		atb.y = 0;
-		alert(Math.round(100 * atb.angleTo(mag) * 180 / Math.PI) / 100);
+		x = Math.round(list[k++] * 2.5);
+		y = Math.round(list[k++] * 2.5);
+		mouse.x =  ((x - renderer2.domElement.offsetLeft) / renderer2.domElement.clientWidth)  * 2 - 1;
+		mouse.y = -((y - renderer2.domElement.offsetTop)  / renderer2.domElement.clientHeight) * 2 + 1;
+		ray.setFromCamera(mouse, camera);
+		var i = ray.intersectObject(shadowPlane);
+		if (i.length > 0)
+		{
+			var p = i[0].point;
+			var top = vObj.position.clone();
+			top.y += vObjHeight / 2;
+			for (var j = 0; j < 6; j++)
+			{
+				switch (j)
+				{
+					case 0:
+						top.x += vObjHeight / 2;
+						top.z += vObjHeight / 2;
+						break;
+
+					case 1:
+						top.x += vObjHeight / 2;
+						top.z -= vObjHeight / 2;
+						break;
+
+					case 2:
+						top.x -= vObjHeight / 2;
+						top.z -= vObjHeight / 2;
+						break;
+
+					case 3:
+						top.x -= vObjHeight / 2;
+						top.z += vObjHeight / 2;
+						break;
+
+					case 4:
+						break;
+
+					default:
+						top.y -= vObjHeight / 2;
+						break;
+				}
+				//top.applyAxisAngle(new THREE.Vector3(0, 1, 0), vObj.rotation.y);
+				var vt = top.clone();
+				var atb = p.clone().sub(top);    // A to B
+				top.add(atb.multiplyScalar(-1)); // multiplicar por um valor mais alto (mais baixo, já que é menor que 0) se necessário
+				light.position.set(top.x, top.y, top.z);
+				emptyObj.position.set(p.x, p.y, p.z);
+				light.target = emptyObj;
+				var atbp = atb.clone();
+				atbp.y = 0;
+				res.push([x, y, j, (Math.round(100 * atb.angleTo(mag) * 180 / Math.PI) / 100).toFixed(2), (Math.round(100 * atbp.angleTo(mag) * 180 / Math.PI) / 100).toFixed(2), top.x, top.y, top.z, p.x, p.y, p.z, vt.x, vt.y, vt.z, k]);
+			}
+		}
 	}
+	//console.log(res);
+	res.sort(function(a, b)
+	{
+		return a[3] - b[3];
+	});
+	light.position.set(res[0][5], res[0][6], res[0][7]);
+	emptyObj.position.set(res[0][8], res[0][9], res[0][10]);
+	hlObj.position.set(res[0][8], res[0][9], res[0][10]);
+	hlPoint.position.set(res[0][11], res[0][12], res[0][13]);
+	console.log(hlObj.position);
+	console.log(hlPoint.position);
+	light.target = emptyObj;
+	alert(res[0][3]);
+	var txt = "";
+	for (var k = 0; k < res.length; k++)
+		for (var j = 0; j < 5; j++)
+			txt += res[k][2] + "\t" + res[k][0] + "\t" + res[k][1] + "\t" + res[k][3] + "\t" + res[k][4] + (res[k][14] == 2 ? "\t(center)" : "") + "\n";
+	var a = document.createElement("a");
+	a.href = window.URL.createObjectURL(new Blob([txt], {type: "text/plain"}));
+	a.download = "results.txt";
+	a.click();
 }
 
 
