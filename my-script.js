@@ -94,7 +94,11 @@ function initialize()
 
 	arToolkitSource = new THREEx.ArToolkitSource({
 		//sourceType: 'webcam'
-		sourceType: 'image', sourceUrl: 'my-images/scene.png'
+		sourceType: 'image', sourceUrl: 'my-images/00006.png',
+		sourceWidth: 640,
+		sourceHeight: 640,
+		displayWidth: 640,
+		displayHeight: 640
 	});
 
 	function onResize() // disabled
@@ -291,7 +295,7 @@ function initialize()
 	arrowHelper = new THREE.ArrowHelper(new THREE.Vector3(0, 1, 0), new THREE.Vector3(0, 0, 0), 1, 0xff0000);
 
 
-	var floor         = new THREE.Mesh(plane,    asphalt);
+	floor             = new THREE.Mesh(plane,    asphalt);
 	var auxFloor      = new THREE.Mesh(plane,    lightMat);
 	var stoneSphere1  = new THREE.Mesh(sphere1,  marble);
 	var stoneSphere2  = new THREE.Mesh(sphere2,  marble);
@@ -308,11 +312,11 @@ function initialize()
 	 *********************************************************************************************/
 
 	light.position.set        (  6,   3,   4);
-	//light.position.set        ( -6,   3,   2);
-	//light.position.set        (  4,   3,  -2);
+	light.position.set        ( -6,   3,   2);
+	light.position.set        (  4,   3,  -2);
 	vObj.position.set         ( -1,   0,   4);
-	//vObj.position.set         (  1,   0,   4);
-	//vObj.position.set         (  1,   0,   3);
+	vObj.position.set         (  1,   0,   4);
+	vObj.position.set         (  1,   0,   3);
 	stoneSphere1.position.set (  3,   0,  -6);
 	stoneSphere2.position.set (  2,   0,   1);
 	metalCylinder.position.set(  2,   1,   1);
@@ -366,13 +370,13 @@ function initialize()
 	scene1.add(floor);
 	//scene1.add(auxFloor);
 	scene1.add(light.clone());
-	scene1.add(stoneSphere1);
-	scene1.add(stoneSphere2);
+//	scene1.add(stoneSphere1);
+//	scene1.add(stoneSphere2);
 //	scene1.add(metalCylinder);
 //	scene1.add(woodCube);
 //	scene1.add(rubrikCube);
-//	scene1.add(stoneCube1);
-//	scene1.add(stoneCube2);
+	scene1.add(stoneCube1);
+	scene1.add(stoneCube2);
 
 	scene2.add(vObj);
 	scene2.add(shadowPlane);
@@ -400,6 +404,7 @@ function onDocumentMouseDown(event)
 			//console.log(event.clientX, event.clientY);
 			vObj.visible = !vObj.visible;
 			vObjMask.visible = vObj.visible;
+			floor.visible = vObj.visible;
 			break;
 
 		case 1: // middle
@@ -424,7 +429,26 @@ function setShadowPos(list)
 {
 	var k = 0;
 	var res = [];
-	console.log(list.length);
+	var position = vObj.geometry.attributes.position;
+	var v = [];
+	var v0 = new THREE.Vector3();
+	var v1 = new THREE.Vector3();
+	var vf = new THREE.Vector3();
+	var eps = 0.01;
+	for (var m = 0; m < position.count; m++)
+	{
+		for (var n = 0; n < position.count; n++)
+		{
+			v0.fromBufferAttribute(position, m);
+			v1.fromBufferAttribute(position, n);
+			vf = (v0.add(v1.clone())).multiplyScalar(0.5);
+			for (var j = 0; j < v.length; j++)
+				if (Math.abs(vf.x - v[j].x) + Math.abs(vf.y - v[j].y) + Math.abs(vf.z - v[j].z) < eps || vf.y < 0)
+					break;
+			if (j == v.length)
+				v.push(vf.clone());
+		}
+	}
 	while (k < list.length)
 	{
 		x = Math.round(list[k++] * 2.5);
@@ -437,10 +461,10 @@ function setShadowPos(list)
 		{
 			var p = i[0].point;
 			var top = new THREE.Vector3();
-			var position = vObj.geometry.attributes.position;
-			for (var j = 0; j < position.count; j++)
+			for (var j = 0; j < v.length; j++)
 			{
-				top.fromBufferAttribute(position, j);
+				//top.fromBufferAttribute(v, j);
+				top = v[j].clone();
 				if (top.y < 0)
 					continue;
 				top.applyMatrix4(vObj.matrixWorld);
@@ -452,7 +476,7 @@ function setShadowPos(list)
 				light.target = emptyObj;
 				var atbp = atb.clone();
 				atbp.y = 0;
-				res.push([x, y, j, (Math.round(100 * atb.angleTo(mag) * 180 / Math.PI) / 100).toFixed(2), (Math.round(100 * atbp.angleTo(mag) * 180 / Math.PI) / 100).toFixed(2), k, top.clone(), p.clone(), vt.clone(), atb.clone()]);
+				res.push([x, y, v[j].clone(), (Math.round(100 * atb.angleTo(mag) * 180 / Math.PI) / 100).toFixed(2), (Math.round(100 * atbp.angleTo(mag) * 180 / Math.PI) / 100).toFixed(2), k, top.clone(), p.clone(), vt.clone(), atb.clone()]);
 			}
 		}
 	}
@@ -474,7 +498,7 @@ function setShadowPos(list)
 	var txt = "";
 	for (var k = 0; k < res.length; k++)
 		for (var j = 0; j < 5; j++)
-			txt += res[k][2] + "\t" + res[k][0] + "\t" + res[k][1] + "\t" + res[k][3] + "\t" + res[k][4] + (res[k][5] == 2 ? "\t(center)" : "") + "\n";
+			txt += Math.round(res[k][2].x) + "\t" + Math.round(res[k][2].y) + "\t" + Math.round(res[k][2].z) + "\t" + res[k][0] + "\t" + res[k][1] + "\t" + res[k][3] + "\t" + res[k][4] + (res[k][5] == 2 ? "\t(center)" : "") + "\n";
 	var a = document.createElement("a");
 	a.href = window.URL.createObjectURL(new Blob([txt], {type: "text/plain"}));
 	a.download = "results.txt";
