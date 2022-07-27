@@ -1,9 +1,10 @@
 var clock, deltaTime, totalTime;
 var arToolkitSource, arToolkitContext;
-var camera, renderer1, renderer2, renderer3;
-var scene1, scene2, scene3;
+var camera, renderer1, renderer2, renderer3, renderer4, renderer5;
+var mainScene1, mainScene2, mainScene3, mainScene4, mainScene5;
+var scene1, scene2, scene3, scene4, scene5;
 var emptyObj, vObj, vObjMask, shadowPlane, light, floor;
-var hlObj, hlPoint, arrowHelper;
+var hlObj, hlPoint, arrowHelper, gt;
 
 var ray    = new THREE.Raycaster();
 var mouse  = new THREE.Vector2();
@@ -127,7 +128,7 @@ function initialize()
 	});
 	
 	// copy projection matrix to camera when initialization complete
-	arToolkitContext.init( function onCompleted(){
+	arToolkitContext.init(function onCompleted(){
 		camera.projectionMatrix.copy( arToolkitContext.getProjectionMatrix() );
 		camera.aspect = 1.0;
 		camera.updateProjectionMatrix();
@@ -285,15 +286,15 @@ function initialize()
 	 *
 	 *********************************************************************************************/
 
-	emptyObj    = new THREE.Mesh();//new THREE.SphereGeometry(0.2), new THREE.MeshNormalMaterial());
-	vObj        = new THREE.Mesh(cube,    wood);
-	vObjMask    = new THREE.Mesh(cube,    maskMat);
-	shadowPlane = new THREE.Mesh(plane,   shadowMat);
+	emptyObj     = new THREE.Mesh();//new THREE.SphereGeometry(0.2), new THREE.MeshNormalMaterial());
+	vObj         = new THREE.Mesh(cube,    wood);
+	vObjMask     = new THREE.Mesh(cube,    maskMat);
+	shadowPlane  = new THREE.Mesh(plane,   shadowMat);
 
-	hlObj       = new THREE.Mesh(sphere3, rMat);
-	hlPoint     = new THREE.Mesh(sphere3, bMat);
-	arrowHelper = new THREE.ArrowHelper(new THREE.Vector3(0, 1, 0), new THREE.Vector3(0, 0, 0), 1, 0xff0000);
-
+	hlObj        = new THREE.Mesh(sphere3, rMat);
+	hlPoint      = new THREE.Mesh(sphere3, bMat);
+	arrowHelper  = new THREE.ArrowHelper(new THREE.Vector3(0, 1, 0), new THREE.Vector3(0, 0, 0), 1, 0xff0000);
+	gt           = new THREE.ArrowHelper(new THREE.Vector3(0, 1, 0), new THREE.Vector3(0, 0, 0), 1, 0xffff00);
 
 	floor             = new THREE.Mesh(plane,    asphalt);
 	var auxFloor      = new THREE.Mesh(plane,    lightMat);
@@ -328,8 +329,8 @@ function initialize()
 
 	camera.lookAt(floor.position);
 	light.target = floor;
-	mag = light.position.clone();
-	mag.y = 0;
+	mag = (light.target.position.clone()).sub(light.position.clone()).normalize();
+//	mag.y = 0;
 
 	vObj.rotation.y       =  0.7;
 	woodCube.rotation.y   = -0.3;
@@ -386,10 +387,17 @@ function initialize()
 	scene2.add(hlObj);
 	scene2.add(hlPoint);
 	scene2.add(arrowHelper);
+	scene2.add(gt);
 
 	scene3.add(vObjMask);
 
 	document.addEventListener("mousedown", onDocumentMouseDown, false);
+
+	vObj.castShadow     = true;
+	hlObj.visible       = false;
+	hlPoint.visible     = false;
+	arrowHelper.visible = false;
+	gt.visible          = false;
 }
 
 
@@ -412,7 +420,11 @@ function onDocumentMouseDown(event)
 			if (inpt != "")
 			{
 				setShadowPos(inpt.split(" "));
-				vObj.castShadow = true;
+				vObj.castShadow     = true;
+				hlObj.visible       = true;
+				hlPoint.visible     = true;
+				arrowHelper.visible = true;
+				gt.visible          = true;
 			}
 			else
 				vObj.castShadow = false;
@@ -425,6 +437,32 @@ function onDocumentMouseDown(event)
 }
 
 
+function getMidPoints(p, t, r) // pontos, tolerancia, recursoes
+{
+	console.log(r);
+	if (r > 0)
+	{
+		var v, k, n = p.length;
+		for (var i = 0; i < n; i++)
+		{
+			for (var j = 0; j < n; j++)
+			{
+				if (i == j)
+					continue;
+				v = ((p[i].clone()).add(p[j].clone())).multiplyScalar(0.5);
+				for (k = n; k < p.length; k++)
+					if ((Math.abs(v.x - p[k].x) + Math.abs(v.y - p[k].y) + Math.abs(v.z - p[k].z)) < t)
+						break;
+				if (k == p.length)
+					p.push(v.clone());
+			}
+		}
+		return getMidPoints(p, t, --r);
+	}
+	return p;
+}
+
+
 function setShadowPos(list)
 {
 	var k = 0;
@@ -432,9 +470,25 @@ function setShadowPos(list)
 	var position = vObj.geometry.attributes.position;
 	var v = [];
 	var v0 = new THREE.Vector3();
+	/*
 	var v1 = new THREE.Vector3();
 	var vf = new THREE.Vector3();
 	var eps = 0.01;
+	*/
+	for (var n = 0; n < position.count; n++)
+	{
+		v0.fromBufferAttribute(position, n);
+		for (k = 0; k < v.length; k++)
+			if ((Math.abs(v0.x - v[k].x) + Math.abs(v0.y - v[k].y) + Math.abs(v0.z - v[k].z)) < 0.01)
+				break;
+		if (k == v.length)
+			v.push(v0.clone());
+	}
+	//console.log(v);
+	//getMidPoints(v, 0.001, 1);
+	console.log(getMidPoints(v, 0.001, 1));
+	console.log(v);
+	/*
 	for (var m = 0; m < position.count; m++)
 	{
 		for (var n = 0; n < position.count; n++)
@@ -449,6 +503,7 @@ function setShadowPos(list)
 				v.push(vf.clone());
 		}
 	}
+	*/
 	while (k < list.length)
 	{
 		x = Math.round(list[k++] * 2.5);
@@ -465,12 +520,12 @@ function setShadowPos(list)
 			{
 				//top.fromBufferAttribute(v, j);
 				top = v[j].clone();
-				if (top.y < 0)
-					continue;
+//				if (top.y < 0)
+//					continue;
 				top.applyMatrix4(vObj.matrixWorld);
 				var vt = top.clone();
 				var atb = p.clone().sub(top);    // A to B
-				top.add(atb.multiplyScalar(-1)); // multiplicar por um valor mais alto (mais baixo, já que é menor que 0) se necessário
+				top.add((atb.clone()).multiplyScalar(-1)); // multiplicar por um valor mais alto (mais baixo, já que é menor que 0) se necessário
 				light.position.set(top.x, top.y, top.z);
 				emptyObj.position.set(p.x, p.y, p.z);
 				light.target = emptyObj;
@@ -486,14 +541,18 @@ function setShadowPos(list)
 		return a[3] - b[3];
 	});
 	alert(res[0][3]);
+	console.log(res[0][3]);
 	light.position.set(res[0][6].x, res[0][6].y, res[0][6].z);
 	emptyObj.position.set(res[0][7].x, res[0][7].y, res[0][7].z);
 	hlObj.position.set(res[0][7].x, res[0][7].y, res[0][7].z);
 	hlPoint.position.set(res[0][8].x, res[0][8].y, res[0][8].z);
 	//arrowHelper = new THREE.ArrowHelper(new THREE.Vector3(res[0][9].x, res[0][9].y, res[0][9].z), new THREE.Vector3(res[0][8].x, res[0][8].y, res[0][8].z), 1, 0xff0000);
+	scene2.remove(gt);
 	scene2.remove(arrowHelper);
-	arrowHelper = new THREE.ArrowHelper(res[0][9].normalize().multiplyScalar(-1), res[0][8], res[0][9].length(), 0xff0000);
+	arrowHelper = new THREE.ArrowHelper((res[0][9].clone()).normalize().multiplyScalar(-1), res[0][7], 20, 0xff0000);
+	gt = new THREE.ArrowHelper((mag.clone()).multiplyScalar(-1), (res[0][8].clone()).add((mag.clone()).multiplyScalar(res[0][9].length())), 20, 0xffff00);
 	scene2.add(arrowHelper);
+	scene2.add(gt);
 	light.target = emptyObj;
 	var txt = "";
 	for (var k = 0; k < res.length; k++)
