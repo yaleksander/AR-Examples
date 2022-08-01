@@ -1,10 +1,10 @@
 var clock, deltaTime, totalTime;
 var arToolkitSource, arToolkitContext;
-var camera, renderer1, renderer2, renderer3, renderer4, renderer5;
-var mainScene1, mainScene2, mainScene3, mainScene4, mainScene5;
-var scene1, scene2, scene3, scene4, scene5;
+var camera, renderer1, renderer2, renderer3;
+var mainScene1, mainScene2, mainScene3;
+var scene1, scene2, scene3;
 var emptyObj, vObj, vObjMask, shadowPlane, light, floor;
-var hlObj, hlPoint, arrowHelper, gt;
+var hlObj, hlPoint, arrowHelper, gt, wObj, wPlane, wShadowPlane;
 
 var ray    = new THREE.Raycaster();
 var mouse  = new THREE.Vector2();
@@ -81,6 +81,7 @@ function initialize()
 	renderer3.domElement.style.position = 'absolute';
 	renderer3.domElement.style.top = '0px';
 	renderer3.domElement.style.left = '640px';
+	renderer3.shadowMap.enabled = true;
 	document.body.appendChild(renderer3.domElement);
 
 	clock = new THREE.Clock();
@@ -259,7 +260,7 @@ function initialize()
 
 	light.castShadow = true;
 
-	var d = vObjHeight * 10;
+	var d = vObjHeight * 5;
 	light.shadow.camera.left   = -d;
 	light.shadow.camera.right  =  d;
 	light.shadow.camera.top    =  d;
@@ -289,7 +290,10 @@ function initialize()
 	emptyObj     = new THREE.Mesh();//new THREE.SphereGeometry(0.2), new THREE.MeshNormalMaterial());
 	vObj         = new THREE.Mesh(cube,    wood);
 	vObjMask     = new THREE.Mesh(cube,    maskMat);
+	wObj         = new THREE.Mesh(cube,    maskMat);
 	shadowPlane  = new THREE.Mesh(plane,   shadowMat);
+	wPlane       = new THREE.Mesh(plane,   maskMat);
+	wShadowPlane = new THREE.Mesh(plane,   shadowMat);
 
 	hlObj        = new THREE.Mesh(sphere3, rMat);
 	hlPoint      = new THREE.Mesh(sphere3, bMat);
@@ -338,15 +342,17 @@ function initialize()
 	stoneCube1.rotation.y =  0.1;
 	stoneCube2.rotation.y =  0.1;
 
-	floor.receiveShadow       = true;
-	shadowPlane.receiveShadow = true;
-	stoneSphere1.castShadow   = true;
-	stoneSphere2.castShadow   = true;
-	metalCylinder.castShadow  = true;
-	woodCube.castShadow       = true;
-	rubrikCube.castShadow     = true;
-	stoneCube1.castShadow     = true;
-	stoneCube2.castShadow     = true;
+	floor.receiveShadow        = true;
+	shadowPlane.receiveShadow  = true;
+	stoneSphere1.castShadow    = true;
+	stoneSphere2.castShadow    = true;
+	metalCylinder.castShadow   = true;
+	woodCube.castShadow        = true;
+	rubrikCube.castShadow      = true;
+	stoneCube1.castShadow      = true;
+	stoneCube2.castShadow      = true;
+	wShadowPlane.receiveShadow = true;
+	wObj.castShadow            = true;
 
 	floor.rotation.x = -Math.PI / 2;
 	auxFloor.rotation.x = -Math.PI / 2;
@@ -358,6 +364,10 @@ function initialize()
 	stoneSphere1.position.y = vObjHeight * 0.6;
 	stoneSphere2.position.y = vObjHeight * 0.4;
 	shadowPlane.position.y = floor.position.clone().y;
+	wShadowPlane.rotation.x = -Math.PI / 2;
+	wShadowPlane.position.y = floor.position.clone().y;
+	wPlane.rotation.x = -Math.PI / 2;
+	wPlane.position.y = floor.position.clone().y - 0.01;
 
 	/**********************************************************************************************
 	 *
@@ -391,13 +401,23 @@ function initialize()
 
 	scene3.add(vObjMask);
 
+//	scene3.add(light.clone());
+//	scene3.add(wShadowPlane);
+	scene2.add(wPlane);
+	scene2.add(wObj);
+
 	document.addEventListener("mousedown", onDocumentMouseDown, false);
 
-	vObj.castShadow     = true;
-	hlObj.visible       = false;
-	hlPoint.visible     = false;
-	arrowHelper.visible = false;
-	gt.visible          = false;
+	wObj.visible         = false;
+	wPlane.visible       = false;
+	vObjMask.visible     = true;
+	wShadowPlane.visible = false;
+
+	vObj.castShadow      = true;
+	hlObj.visible        = false;
+	hlPoint.visible      = false;
+	arrowHelper.visible  = false;
+	gt.visible           = false;
 }
 
 
@@ -410,16 +430,20 @@ function onDocumentMouseDown(event)
 	{
 		case 0: // left
 			//console.log(event.clientX, event.clientY);
-			vObj.visible = !vObj.visible;
-			vObjMask.visible = vObj.visible;
-			floor.visible = vObj.visible;
+			vObj.visible         = !vObj.visible;
+			vObjMask.visible     =  vObj.visible;
+			floor.visible        =  vObj.visible;
+			wObj.visible         = !vObj.visible;
+			wPlane.visible       = !vObj.visible;
+//			wShadowPlane.visible = !vObj.visible;
 			break;
 
 		case 1: // middle
 			var inpt = prompt("Ponto 2D:");
 			if (inpt != "")
 			{
-				setShadowPos(inpt.split(" "));
+				//setShadowFromGroundTruth(inpt.split(" "));
+				setShadowFromSimilarity(inpt.split(" "));
 				vObj.castShadow     = true;
 				hlObj.visible       = true;
 				hlPoint.visible     = true;
@@ -431,7 +455,7 @@ function onDocumentMouseDown(event)
 			break;
 
 		case 2: // right
-			teste();
+			//teste();
 			break;
 	}
 }
@@ -439,7 +463,6 @@ function onDocumentMouseDown(event)
 
 function getMidPoints(p, t, r) // pontos, tolerancia, recursoes
 {
-	console.log(r);
 	if (r > 0)
 	{
 		var v, k, n = p.length;
@@ -463,18 +486,13 @@ function getMidPoints(p, t, r) // pontos, tolerancia, recursoes
 }
 
 
-function setShadowPos(list)
+function setShadowFromGroundTruth(list)
 {
 	var k = 0;
 	var res = [];
 	var position = vObj.geometry.attributes.position;
 	var v = [];
 	var v0 = new THREE.Vector3();
-	/*
-	var v1 = new THREE.Vector3();
-	var vf = new THREE.Vector3();
-	var eps = 0.01;
-	*/
 	for (var n = 0; n < position.count; n++)
 	{
 		v0.fromBufferAttribute(position, n);
@@ -484,26 +502,8 @@ function setShadowPos(list)
 		if (k == v.length)
 			v.push(v0.clone());
 	}
-	//console.log(v);
-	//getMidPoints(v, 0.001, 1);
-	console.log(getMidPoints(v, 0.001, 1));
-	console.log(v);
-	/*
-	for (var m = 0; m < position.count; m++)
-	{
-		for (var n = 0; n < position.count; n++)
-		{
-			v0.fromBufferAttribute(position, m);
-			v1.fromBufferAttribute(position, n);
-			vf = (v0.add(v1.clone())).multiplyScalar(0.5);
-			for (var j = 0; j < v.length; j++)
-				if (Math.abs(vf.x - v[j].x) + Math.abs(vf.y - v[j].y) + Math.abs(vf.z - v[j].z) < eps || vf.y < 0)
-					break;
-			if (j == v.length)
-				v.push(vf.clone());
-		}
-	}
-	*/
+	getMidPoints(v, 0.001, 1);
+
 	while (k < list.length)
 	{
 		x = Math.round(list[k++] * 2.5);
@@ -518,13 +518,10 @@ function setShadowPos(list)
 			var top = new THREE.Vector3();
 			for (var j = 0; j < v.length; j++)
 			{
-				//top.fromBufferAttribute(v, j);
 				top = v[j].clone();
-//				if (top.y < 0)
-//					continue;
 				top.applyMatrix4(vObj.matrixWorld);
 				var vt = top.clone();
-				var atb = p.clone().sub(top);    // A to B
+				var atb = p.clone().sub(top); // A to B
 				top.add((atb.clone()).multiplyScalar(-1)); // multiplicar por um valor mais alto (mais baixo, já que é menor que 0) se necessário
 				light.position.set(top.x, top.y, top.z);
 				emptyObj.position.set(p.x, p.y, p.z);
@@ -535,7 +532,6 @@ function setShadowPos(list)
 			}
 		}
 	}
-	//console.log(res);
 	res.sort(function(a, b)
 	{
 		return a[3] - b[3];
@@ -546,7 +542,6 @@ function setShadowPos(list)
 	emptyObj.position.set(res[0][7].x, res[0][7].y, res[0][7].z);
 	hlObj.position.set(res[0][7].x, res[0][7].y, res[0][7].z);
 	hlPoint.position.set(res[0][8].x, res[0][8].y, res[0][8].z);
-	//arrowHelper = new THREE.ArrowHelper(new THREE.Vector3(res[0][9].x, res[0][9].y, res[0][9].z), new THREE.Vector3(res[0][8].x, res[0][8].y, res[0][8].z), 1, 0xff0000);
 	scene2.remove(gt);
 	scene2.remove(arrowHelper);
 	arrowHelper = new THREE.ArrowHelper((res[0][9].clone()).normalize().multiplyScalar(-1), res[0][7], 20, 0xff0000);
@@ -554,6 +549,7 @@ function setShadowPos(list)
 	scene2.add(arrowHelper);
 	scene2.add(gt);
 	light.target = emptyObj;
+	return res;
 	var txt = "";
 	for (var k = 0; k < res.length; k++)
 		for (var j = 0; j < 5; j++)
@@ -562,6 +558,130 @@ function setShadowPos(list)
 	a.href = window.URL.createObjectURL(new Blob([txt], {type: "text/plain"}));
 	a.download = "results.txt";
 	a.click();
+}
+
+
+function setShadowFromSimilarity(list)
+{
+/*
+	var x, y, k = 0;
+	var position = vObj.geometry.attributes.position;
+	var v = [];
+	var res = [];
+	var v0 = new THREE.Vector3();
+	for (var n = 0; n < position.count; n++)
+	{
+		v0.fromBufferAttribute(position, n);
+		for (k = 0; k < v.length; k++)
+			if ((Math.abs(v0.x - v[k].x) + Math.abs(v0.y - v[k].y) + Math.abs(v0.z - v[k].z)) < 0.01)
+				break;
+		if (k == v.length)
+			v.push(v0.clone());
+	}
+	getMidPoints(v, 0.001, 1);
+
+	var mask = [];
+	for (x = 0; x < 256; x++)
+	{
+		mask[x] = [];
+		for (y = 0; y < 256; y++)
+			mask[x][y] = 0;
+	}
+	while (k < list.length)
+	{
+		x = list[k++];
+		y = list[k++];
+		mask[x][y] = 1;
+	}
+	console.log(mask);
+
+	var canvas = document.createElement("canvas");
+	canvas.width  = 640;
+	canvas.height = 640;
+	var ctx = canvas.getContext("2d");
+	ctx.fillStyle = "white";
+
+	console.log(v.length * list.length / 2);
+	k = 0;
+	while (k < list.length)
+	{
+		x = Math.round(list[k++] * 2.5);
+		y = Math.round(list[k++] * 2.5);
+		k += Math.floor(Math.random() * 5) * 2; // pula iterações para adiantar o resultado
+		mouse.x =  ((x - renderer2.domElement.offsetLeft) / renderer2.domElement.clientWidth)  * 2 - 1;
+		mouse.y = -((y - renderer2.domElement.offsetTop)  / renderer2.domElement.clientHeight) * 2 + 1;
+		ray.setFromCamera(mouse, camera);
+		var i = ray.intersectObject(shadowPlane);
+		if (i.length > 0)
+		{
+			var p = i[0].point;
+			var top = new THREE.Vector3();
+			for (var j = 0; j < v.length; j++)
+			{
+				top = v[j].clone();
+				top.applyMatrix4(vObj.matrixWorld);
+				var vt = top.clone();
+				var atb = p.clone().sub(top); // A to B
+				top.add((atb.clone()).multiplyScalar(-1)); // multiplicar por um valor mais alto (mais baixo, já que é menor que 0) se necessário
+				light.position.set(top.x, top.y, top.z);
+				emptyObj.position.set(p.x, p.y, p.z);
+				light.target = emptyObj;
+				renderer2.render(mainScene2, camera);
+				ctx.fillRect(0, 0, 256, 256);
+				ctx.drawImage(renderer2.domElement, 0, 0, 256, 256);
+				var c00 = 0;
+				var c01 = 0;
+				var c10 = 0;
+				var c11 = 0;
+				for (x = 0; x < 256; x++)
+				{
+					for (y = 0; y < 256; y++)
+					{
+						var d = ctx.getImageData(x, y, 1, 1).data;
+						var c = (d[0] > 0 && d[1] > 0 && d[2] > 0) ? 1 : 0;
+						if (c == 0 && mask[x][y] == 0)
+							c00++;
+						else if (c == 0 && mask[x][y] == 1)
+							c01++;
+						else if (c == 1 && mask[x][y] == 0)
+							c10++;
+						else
+							c11++;
+					}
+				}
+				res.push([c00, c01, c10, c11, top.clone(), p.clone()]);
+				console.log(res[res.length - 1][0] + res[res.length - 1][3]);
+			}
+		}
+	}
+	console.log(res);
+	res.sort(function(a, b)
+	{
+		return (a[0] + a[3]) - (b[0] + b[3]);
+	});
+	light.position.set(res[0][4].x, res[0][4].y, res[0][4].z);
+	emptyObj.position.set(res[0][5].x, res[0][5].y, res[0][5].z);
+	light.target = emptyObj;
+*/
+	var res = setShadowFromGroundTruth(list);
+	var k = 0;
+	var t = 1.0;
+	console.log(res);
+	while (k < res.length - 1)
+	{
+		if (res[k] == undefined)
+			break;
+		if (res[k + 1] == undefined)
+			break;
+		var a = parseFloat(res[k][3]);
+		var b = parseFloat(res[k + 1][3]);
+		console.log(Math.abs(a - b));
+		if (Math.abs(a - b) < t)
+			res.splice(k + 1, 1);
+		else
+			k++;
+	}
+	console.log(res);
 }
 
 
@@ -593,6 +713,10 @@ function update()
 	// copia posição e rotação do objeto virtual da primeira cena pra segunda
 	vObjMask.position.set(vObj.position.x, vObj.position.y, vObj.position.z);
 	vObjMask.rotation.set(vObj.rotation.x, vObj.rotation.y, vObj.rotation.z);
+
+	// mesma coisa para a terceira
+	wObj.position.set(vObj.position.x, vObj.position.y, vObj.position.z);
+	wObj.rotation.set(vObj.rotation.x, vObj.rotation.y, vObj.rotation.z);
 
 	// copia posição e rotação da primeira cena pra segunda
 	scene2.position.x = scene1.position.x;

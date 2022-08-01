@@ -18,13 +18,8 @@
 
 <body style='margin : 0px; overflow: hidden; font-family: Monospace;'>
 
-<!-- 
-  Example created by Lee Stemkoski: https://github.com/stemkoski
-  Based on the AR.js library and examples created by Jerome Etienne: https://github.com/jeromeetienne/AR.js/
--->
-
-<a id="exportLink" href="#"></a>
-<script src="my-script.js"></script>
+	<a id="exportLink" href="#"></a>
+	<script src="my-script.js"></script>
 
 </body>
 </html>
