@@ -4,12 +4,13 @@ var camera, renderer1, renderer2, renderer3;
 var mainScene1, mainScene2, mainScene3;
 var scene1, scene2, scene3;
 var emptyObj, vObj, vObjMask, shadowPlane, light, floor;
-var hlObj, hlPoint, arrowHelper, gt, wObj, wPlane, wShadowPlane;
+var hlObj, hlPoint, arrowHelper, gt, wObj, wPlane;
+var origLight, stoneSphere1, stoneSphere2, metalCylinder, woodCube, rubrikCube, stoneCube1, stoneCube2;
+var asphaltFloor, stoneFloor, grassFloor;
 
 var ray    = new THREE.Raycaster();
 var mouse  = new THREE.Vector2();
 var loader = new THREE.TextureLoader();
-var canvas = document.createElement("canvas");
 
 var planeSize, vObjHeight;
 var mag;
@@ -256,15 +257,18 @@ function initialize()
 	 *********************************************************************************************/
 
 	var ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
-	light = new THREE.DirectionalLight(0xffffff, 0.9);
+	origLight = new THREE.DirectionalLight(0xffffff, 0.9);
+	origLight.castShadow = true;
+	light = origLight.clone();
 
-	light.castShadow = true;
-
-	var d = vObjHeight * 5;
+	var d = vObjHeight * 10;
 	light.shadow.camera.left   = -d;
 	light.shadow.camera.right  =  d;
 	light.shadow.camera.top    =  d;
 	light.shadow.camera.bottom = -d;
+
+	light.shadow.mapSize.width  = 2048;
+	light.shadow.mapSize.height = 2048;
 
 	/**********************************************************************************************
 	 *
@@ -287,28 +291,30 @@ function initialize()
 	 *
 	 *********************************************************************************************/
 
-	emptyObj     = new THREE.Mesh();//new THREE.SphereGeometry(0.2), new THREE.MeshNormalMaterial());
-	vObj         = new THREE.Mesh(cube,    wood);
-	vObjMask     = new THREE.Mesh(cube,    maskMat);
-	wObj         = new THREE.Mesh(cube,    maskMat);
-	shadowPlane  = new THREE.Mesh(plane,   shadowMat);
-	wPlane       = new THREE.Mesh(plane,   maskMat);
-	wShadowPlane = new THREE.Mesh(plane,   shadowMat);
+	emptyObj      = new THREE.Mesh();//new THREE.SphereGeometry(0.2), new THREE.MeshNormalMaterial());
+	vObj          = new THREE.Mesh(cube,    wood);
+	vObjMask      = new THREE.Mesh(cube,    maskMat);
+	wObj          = new THREE.Mesh(cube,    maskMat);
+	shadowPlane   = new THREE.Mesh(plane,   shadowMat);
+	wPlane        = new THREE.Mesh(plane,   maskMat);
 
-	hlObj        = new THREE.Mesh(sphere3, rMat);
-	hlPoint      = new THREE.Mesh(sphere3, bMat);
-	arrowHelper  = new THREE.ArrowHelper(new THREE.Vector3(0, 1, 0), new THREE.Vector3(0, 0, 0), 1, 0xff0000);
-	gt           = new THREE.ArrowHelper(new THREE.Vector3(0, 1, 0), new THREE.Vector3(0, 0, 0), 1, 0xffff00);
+	hlObj         = new THREE.Mesh(sphere3, rMat);
+	hlPoint       = new THREE.Mesh(sphere3, bMat);
+	arrowHelper   = new THREE.ArrowHelper(new THREE.Vector3(0, 1, 0), new THREE.Vector3(0, 0, 0), 1, 0xff0000);
+	gt            = new THREE.ArrowHelper(new THREE.Vector3(0, 1, 0), new THREE.Vector3(0, 0, 0), 1, 0xffff00);
 
-	floor             = new THREE.Mesh(plane,    asphalt);
-	var auxFloor      = new THREE.Mesh(plane,    lightMat);
-	var stoneSphere1  = new THREE.Mesh(sphere1,  marble);
-	var stoneSphere2  = new THREE.Mesh(sphere2,  marble);
-	var metalCylinder = new THREE.Mesh(cylinder, metal);
-	var woodCube      = new THREE.Mesh(cube2,    wood);
-	var stoneCube1    = new THREE.Mesh(cube1,    marble);
-	var stoneCube2    = new THREE.Mesh(cube1,    marble);
-	var rubrikCube    = new THREE.Mesh(cube,     rubrik);
+	floor         = new THREE.Mesh(plane,    lightMat);
+	asphaltFloor  = new THREE.Mesh(plane,    asphalt); // 1, 2, 6: asphalt; 3, 4: stone; 5: grass
+	stoneFloor    = new THREE.Mesh(plane,    stone);   // 1, 2, 6: asphalt; 3, 4: stone; 5: grass
+	grassFloor    = new THREE.Mesh(plane,    grass);   // 1, 2, 6: asphalt; 3, 4: stone; 5: grass
+	auxFloor      = new THREE.Mesh(plane,    lightMat);
+	stoneSphere1  = new THREE.Mesh(sphere1,  marble);
+	stoneSphere2  = new THREE.Mesh(sphere2,  marble);
+	metalCylinder = new THREE.Mesh(cylinder, metal);
+	woodCube      = new THREE.Mesh(cube2,    wood);
+	stoneCube1    = new THREE.Mesh(cube1,    marble);
+	stoneCube2    = new THREE.Mesh(cube1,    marble);
+	rubrikCube    = new THREE.Mesh(cube,     rubrik);
 
 	/**********************************************************************************************
 	 *
@@ -316,12 +322,12 @@ function initialize()
 	 *
 	 *********************************************************************************************/
 
-	light.position.set        (  6,   3,   4);
-	light.position.set        ( -6,   3,   2);
-	light.position.set        (  4,   3,  -2);
-	vObj.position.set         ( -1,   0,   4);
-	vObj.position.set         (  1,   0,   4);
-	vObj.position.set         (  1,   0,   3);
+	light.position.set        (  6,   3,   4); // 1, 2
+//	light.position.set        ( -6,   3,   2); // 3, 4, 5
+//	light.position.set        (  4,   3,  -2); // 6
+	vObj.position.set         ( -1,   0,   4); // 1, 2, 3
+//	vObj.position.set         (  1,   0,   4); // 4, 5
+//	vObj.position.set         (  1,   0,   3); // 6
 	stoneSphere1.position.set (  3,   0,  -6);
 	stoneSphere2.position.set (  2,   0,   1);
 	metalCylinder.position.set(  2,   1,   1);
@@ -332,7 +338,7 @@ function initialize()
 	camera.position.set       (  0,   9,  12);
 
 	camera.lookAt(floor.position);
-	light.target = floor;
+	//light.target = floor;
 	mag = (light.target.position.clone()).sub(light.position.clone()).normalize();
 //	mag.y = 0;
 
@@ -343,6 +349,9 @@ function initialize()
 	stoneCube2.rotation.y =  0.1;
 
 	floor.receiveShadow        = true;
+	asphaltFloor.receiveShadow = true;
+	stoneFloor.receiveShadow   = true;
+	grassFloor.receiveShadow   = true;
 	shadowPlane.receiveShadow  = true;
 	stoneSphere1.castShadow    = true;
 	stoneSphere2.castShadow    = true;
@@ -351,21 +360,27 @@ function initialize()
 	rubrikCube.castShadow      = true;
 	stoneCube1.castShadow      = true;
 	stoneCube2.castShadow      = true;
-	wShadowPlane.receiveShadow = true;
 	wObj.castShadow            = true;
 
 	floor.rotation.x = -Math.PI / 2;
+	asphaltFloor.rotation.x = -Math.PI / 2;
+	stoneFloor.rotation.x = -Math.PI / 2;
+	grassFloor.rotation.x = -Math.PI / 2;
 	auxFloor.rotation.x = -Math.PI / 2;
 	shadowPlane.rotation.x = -Math.PI / 2;
 	floor.position.y = -0.05;
+	asphaltFloor.position.y = floor.position.clone().y;
+	stoneFloor.position.y = floor.position.clone().y;
+	grassFloor.position.y = floor.position.clone().y;
+	asphaltFloor.position.y = -0.05;
+	stoneFloor.position.y = -0.05;
+	grassFloor.position.y = -0.05;
 	//auxFloor.position.y = -0.04;
 	vObj.position.y = vObjHeight / 2;
 	rubrikCube.position.y = vObjHeight / 2;
 	stoneSphere1.position.y = vObjHeight * 0.6;
 	stoneSphere2.position.y = vObjHeight * 0.4;
 	shadowPlane.position.y = floor.position.clone().y;
-	wShadowPlane.rotation.x = -Math.PI / 2;
-	wShadowPlane.position.y = floor.position.clone().y;
 	wPlane.rotation.x = -Math.PI / 2;
 	wPlane.position.y = floor.position.clone().y - 0.01;
 
@@ -378,16 +393,18 @@ function initialize()
 	scene1.add(ambientLight.clone());
 	scene2.add(ambientLight.clone());
 
-	scene1.add(floor);
-	//scene1.add(auxFloor);
-	scene1.add(light.clone());
-//	scene1.add(stoneSphere1);
-//	scene1.add(stoneSphere2);
-//	scene1.add(metalCylinder);
-//	scene1.add(woodCube);
-//	scene1.add(rubrikCube);
-	scene1.add(stoneCube1);
-	scene1.add(stoneCube2);
+	//scene1.add(floor);
+	scene1.add(asphaltFloor);
+	scene1.add(stoneFloor);
+	scene1.add(grassFloor);
+	scene1.add(origLight);
+	scene1.add(stoneSphere1);  // 1
+	scene1.add(stoneSphere2);  // 1
+	scene1.add(metalCylinder); // 2
+	scene1.add(woodCube);      // 3
+	scene1.add(rubrikCube);    // 4, 5
+	scene1.add(stoneCube1);    // 6
+	scene1.add(stoneCube2);    // 6
 
 	scene2.add(vObj);
 	scene2.add(shadowPlane);
@@ -401,8 +418,6 @@ function initialize()
 
 	scene3.add(vObjMask);
 
-//	scene3.add(light.clone());
-//	scene3.add(wShadowPlane);
 	scene2.add(wPlane);
 	scene2.add(wObj);
 
@@ -411,57 +426,18 @@ function initialize()
 	wObj.visible         = false;
 	wPlane.visible       = false;
 	vObjMask.visible     = true;
-	wShadowPlane.visible = false;
 
 	vObj.castShadow      = true;
 	hlObj.visible        = false;
 	hlPoint.visible      = false;
 	arrowHelper.visible  = false;
 	gt.visible           = false;
+
+	setScene(1);
 }
 
 
-function onDocumentMouseDown(event)
-{
-	// the following line would stop any other event handler from firing (such as the mouse's TrackballControls)
-	// event.preventDefault();
-
-	switch (event.button)
-	{
-		case 0: // left
-			//console.log(event.clientX, event.clientY);
-			vObj.visible         = !vObj.visible;
-			vObjMask.visible     =  vObj.visible;
-			floor.visible        =  vObj.visible;
-			wObj.visible         = !vObj.visible;
-			wPlane.visible       = !vObj.visible;
-//			wShadowPlane.visible = !vObj.visible;
-			break;
-
-		case 1: // middle
-			var inpt = prompt("Ponto 2D:");
-			if (inpt != "")
-			{
-				//setShadowFromGroundTruth(inpt.split(" "));
-				setShadowFromSimilarity(inpt.split(" "));
-				vObj.castShadow     = true;
-				hlObj.visible       = true;
-				hlPoint.visible     = true;
-				arrowHelper.visible = true;
-				gt.visible          = true;
-			}
-			else
-				vObj.castShadow = false;
-			break;
-
-		case 2: // right
-			//teste();
-			break;
-	}
-}
-
-
-function getMidPoints(p, t, r) // pontos, tolerancia, recursoes
+function getMidPoints(p, t, r) // p: pontos, t: tolerancia, r: recursoes
 {
 	if (r > 0)
 	{
@@ -483,6 +459,106 @@ function getMidPoints(p, t, r) // pontos, tolerancia, recursoes
 		return getMidPoints(p, t, --r);
 	}
 	return p;
+}
+
+
+function setScene(id)
+{
+	light.position.set(0, 1, 0);
+	switch (id)
+	{
+		case 1:
+			origLight.position.set( 6,  3,  4);
+			vObj.position.set     (-1,  0,  4);
+			stoneSphere1.visible  = true;
+			stoneSphere2.visible  = true;
+			metalCylinder.visible = false;
+			woodCube.visible      = false;
+			rubrikCube.visible    = false;
+			stoneCube1.visible    = false;
+			stoneCube2.visible    = false;
+			asphaltFloor.visible  = true;
+			stoneFloor.visible    = false;
+			grassFloor.visible    = false;
+			break;
+
+		case 2:
+			origLight.position.set( 6,  3,  4);
+			vObj.position.set     (-1,  0,  4);
+			stoneSphere1.visible  = false;
+			stoneSphere2.visible  = false;
+			metalCylinder.visible = true;
+			woodCube.visible      = false;
+			rubrikCube.visible    = false;
+			stoneCube1.visible    = false;
+			stoneCube2.visible    = false;
+			asphaltFloor.visible  = true;
+			stoneFloor.visible    = false;
+			grassFloor.visible    = false;
+			break;
+
+		case 3:
+			origLight.position.set(-6,  3,  2); // 3, 4, 5
+			vObj.position.set     (-1,  0,  4); // 1, 2, 3
+			stoneSphere1.visible  = false;
+			stoneSphere2.visible  = false;
+			metalCylinder.visible = false;
+			woodCube.visible      = true;
+			rubrikCube.visible    = false;
+			stoneCube1.visible    = false;
+			stoneCube2.visible    = false;
+			asphaltFloor.visible  = false;
+			stoneFloor.visible    = true;
+			grassFloor.visible    = false;
+			break;
+
+		case 4:
+			origLight.position.set(-6,  3,  2);
+			vObj.position.set     ( 1,  0,  4);
+			stoneSphere1.visible  = false;
+			stoneSphere2.visible  = false;
+			metalCylinder.visible = false;
+			woodCube.visible      = false;
+			rubrikCube.visible    = true;
+			stoneCube1.visible    = false;
+			stoneCube2.visible    = false;
+			asphaltFloor.visible  = false;
+			stoneFloor.visible    = true;
+			grassFloor.visible    = false;
+			break;
+
+		case 5:
+			origLight.position.set(-6,  3,  2);
+			vObj.position.set     ( 1,  0,  4);
+			stoneSphere1.visible  = false;
+			stoneSphere2.visible  = false;
+			metalCylinder.visible = false;
+			woodCube.visible      = false;
+			rubrikCube.visible    = true;
+			stoneCube1.visible    = false;
+			stoneCube2.visible    = false;
+			asphaltFloor.visible  = false;
+			stoneFloor.visible    = false;
+			grassFloor.visible    = true;
+			break;
+
+		case 6:
+			origLight.position.set( 4,  3, -2);
+			vObj.position.set     ( 1,  0,  3);
+			stoneSphere1.visible  = false;
+			stoneSphere2.visible  = false;
+			metalCylinder.visible = false;
+			woodCube.visible      = false;
+			rubrikCube.visible    = false;
+			stoneCube1.visible    = true;
+			stoneCube2.visible    = true;
+			asphaltFloor.visible  = true;
+			stoneFloor.visible    = false;
+			grassFloor.visible    = false;
+			break;
+	}
+	vObj.position.y = vObjHeight / 2;
+	update();
 }
 
 
@@ -536,8 +612,8 @@ function setShadowFromGroundTruth(list)
 	{
 		return a[3] - b[3];
 	});
-	alert(res[0][3]);
-	console.log(res[0][3]);
+	//alert(res[0][3]);
+	//console.log(res[0][3]);
 	light.position.set(res[0][6].x, res[0][6].y, res[0][6].z);
 	emptyObj.position.set(res[0][7].x, res[0][7].y, res[0][7].z);
 	hlObj.position.set(res[0][7].x, res[0][7].y, res[0][7].z);
@@ -563,22 +639,23 @@ function setShadowFromGroundTruth(list)
 
 function setShadowFromSimilarity(list)
 {
-/*
-	var x, y, k = 0;
-	var position = vObj.geometry.attributes.position;
-	var v = [];
-	var res = [];
-	var v0 = new THREE.Vector3();
-	for (var n = 0; n < position.count; n++)
+	var res = setShadowFromGroundTruth(list);
+	var k = 0;
+	var t = 1.0;
+	var mi = 0, mv = 0;
+	var mpre = 0, mrec = 0, mf = 0;
+	var kpre = 0, krec = 0, kf = 0;
+	//console.log(res);
+	while (k < res.length - 1 && res[k] != undefined && res[k + 1] != undefined)
 	{
-		v0.fromBufferAttribute(position, n);
-		for (k = 0; k < v.length; k++)
-			if ((Math.abs(v0.x - v[k].x) + Math.abs(v0.y - v[k].y) + Math.abs(v0.z - v[k].z)) < 0.01)
-				break;
-		if (k == v.length)
-			v.push(v0.clone());
+		var a = parseFloat(res[k][3]);
+		var b = parseFloat(res[k + 1][3]);
+		if (Math.abs(a - b) < t)
+			res.splice(k + 1, 1);
+		else
+			k++;
 	}
-	getMidPoints(v, 0.001, 1);
+	//console.log(res);
 
 	var mask = [];
 	for (x = 0; x < 256; x++)
@@ -587,101 +664,85 @@ function setShadowFromSimilarity(list)
 		for (y = 0; y < 256; y++)
 			mask[x][y] = 0;
 	}
-	while (k < list.length)
-	{
-		x = list[k++];
-		y = list[k++];
-		mask[x][y] = 1;
-	}
-	console.log(mask);
+	for (k = 0; k < list.length - 1; k += 2)
+		mask[list[k]][list[k + 1]] = 1;
 
 	var canvas = document.createElement("canvas");
-	canvas.width  = 640;
-	canvas.height = 640;
+	canvas.width  = 256;
+	canvas.height = 256;
 	var ctx = canvas.getContext("2d");
 	ctx.fillStyle = "white";
-
-	console.log(v.length * list.length / 2);
-	k = 0;
-	while (k < list.length)
+	scene2.remove(gt);
+	scene2.remove(arrowHelper);
+	
+	for (k = 0; k < res.length; k++)
 	{
-		x = Math.round(list[k++] * 2.5);
-		y = Math.round(list[k++] * 2.5);
-		k += Math.floor(Math.random() * 5) * 2; // pula iterações para adiantar o resultado
-		mouse.x =  ((x - renderer2.domElement.offsetLeft) / renderer2.domElement.clientWidth)  * 2 - 1;
-		mouse.y = -((y - renderer2.domElement.offsetTop)  / renderer2.domElement.clientHeight) * 2 + 1;
-		ray.setFromCamera(mouse, camera);
-		var i = ray.intersectObject(shadowPlane);
-		if (i.length > 0)
+		light.position.set(res[k][6].x, res[k][6].y, res[k][6].z);
+		emptyObj.position.set(res[k][7].x, res[k][7].y, res[k][7].z);
+		light.target = emptyObj;
+		renderer2.render(mainScene2, camera);
+		ctx.fillRect(0, 0, 256, 256);
+		ctx.drawImage(renderer2.domElement, 0, 0, 256, 256);
+		var c00 = 0;
+		var c01 = 0;
+		var c10 = 0;
+		var c11 = 0;
+		for (x = 0; x < 256; x++)
 		{
-			var p = i[0].point;
-			var top = new THREE.Vector3();
-			for (var j = 0; j < v.length; j++)
+			for (y = 0; y < 256; y++)
 			{
-				top = v[j].clone();
-				top.applyMatrix4(vObj.matrixWorld);
-				var vt = top.clone();
-				var atb = p.clone().sub(top); // A to B
-				top.add((atb.clone()).multiplyScalar(-1)); // multiplicar por um valor mais alto (mais baixo, já que é menor que 0) se necessário
-				light.position.set(top.x, top.y, top.z);
-				emptyObj.position.set(p.x, p.y, p.z);
-				light.target = emptyObj;
-				renderer2.render(mainScene2, camera);
-				ctx.fillRect(0, 0, 256, 256);
-				ctx.drawImage(renderer2.domElement, 0, 0, 256, 256);
-				var c00 = 0;
-				var c01 = 0;
-				var c10 = 0;
-				var c11 = 0;
-				for (x = 0; x < 256; x++)
-				{
-					for (y = 0; y < 256; y++)
-					{
-						var d = ctx.getImageData(x, y, 1, 1).data;
-						var c = (d[0] > 0 && d[1] > 0 && d[2] > 0) ? 1 : 0;
-						if (c == 0 && mask[x][y] == 0)
-							c00++;
-						else if (c == 0 && mask[x][y] == 1)
-							c01++;
-						else if (c == 1 && mask[x][y] == 0)
-							c10++;
-						else
-							c11++;
-					}
-				}
-				res.push([c00, c01, c10, c11, top.clone(), p.clone()]);
-				console.log(res[res.length - 1][0] + res[res.length - 1][3]);
+				var d = ctx.getImageData(x, y, 1, 1).data;
+				var c = (d[0] > 200 && d[1] > 200 && d[2] > 200) ? 1 : 0;
+				if (c == 0 && mask[x][y] == 0)
+					c00++;
+				else if (c == 0 && mask[x][y] == 1)
+					c01++;
+				else if (c == 1 && mask[x][y] == 0)
+					c10++;
+				else
+					c11++;
 			}
 		}
+		// https://machinelearningmastery.com/precision-recall-and-f-measure-for-imbalanced-classification/#:~:text=Precision%20quantifies%20the%20number%20of,and%20recall%20in%20one%20number
+		var uni = c00 + c01 + c10;
+		var int = c00;
+		var pre = parseFloat(c00) / parseFloat(c00 + c01);
+		var rec = parseFloat(c00) / parseFloat(c00 + c10);
+		var fme = parseFloat(2 * pre * rec) / parseFloat(pre + rec);
+		var val = Math.abs(uni - int);
+		if (val > mv)
+		{
+			mv = val;
+			mi = k;
+		}
+		if (pre > mpre)
+		{
+			mpre = pre;
+			kpre = k;
+		}
+		if (rec > mrec)
+		{
+			mrec = rec;
+			krec = k;
+		}
+		if (fme > mf)
+		{
+			mf = fme;
+			kf = k;
+		}
 	}
-	console.log(res);
-	res.sort(function(a, b)
-	{
-		return (a[0] + a[3]) - (b[0] + b[3]);
-	});
-	light.position.set(res[0][4].x, res[0][4].y, res[0][4].z);
-	emptyObj.position.set(res[0][5].x, res[0][5].y, res[0][5].z);
+	light.position.set(res[mi][6].x, res[mi][6].y, res[mi][6].z);
+	emptyObj.position.set(res[mi][7].x, res[mi][7].y, res[mi][7].z);
 	light.target = emptyObj;
-*/
-	var res = setShadowFromGroundTruth(list);
-	var k = 0;
-	var t = 1.0;
-	console.log(res);
-	while (k < res.length - 1)
-	{
-		if (res[k] == undefined)
-			break;
-		if (res[k + 1] == undefined)
-			break;
-		var a = parseFloat(res[k][3]);
-		var b = parseFloat(res[k + 1][3]);
-		console.log(Math.abs(a - b));
-		if (Math.abs(a - b) < t)
-			res.splice(k + 1, 1);
-		else
-			k++;
-	}
-	console.log(res);
+	arrowHelper = new THREE.ArrowHelper((res[mi][9].clone()).normalize().multiplyScalar(-1), res[mi][7], 20, 0xff0000);
+	gt = new THREE.ArrowHelper((mag.clone()).multiplyScalar(-1), (res[mi][8].clone()).add((mag.clone()).multiplyScalar(res[mi][9].length())), 20, 0xffff00);
+	scene2.add(arrowHelper);
+	scene2.add(gt);
+	mv = parseFloat(mv) / 65536.0;
+	console.log("Uniao - intersecao: " + mv.toFixed(2)   + "; indice: " + mi   + "; desvio do ground truth: " + res[mi][3]   + "; vetor: (" + res[mi][9].x.toFixed(2)   + ", " + res[mi][9].y.toFixed(2)   + ", " + res[mi][9].z.toFixed(2)   + ")");
+	console.log("Precisao: "           + mpre.toFixed(2) + "; indice: " + kpre + "; desvio do ground truth: " + res[kpre][3] + "; vetor: (" + res[kpre][9].x.toFixed(2) + ", " + res[kpre][9].y.toFixed(2) + ", " + res[kpre][9].z.toFixed(2) + ")");
+	console.log("Recall: "             + mrec.toFixed(2) + "; indice: " + krec + "; desvio do ground truth: " + res[krec][3] + "; vetor: (" + res[krec][9].x.toFixed(2) + ", " + res[krec][9].y.toFixed(2) + ", " + res[krec][9].z.toFixed(2) + ")");
+	console.log("F-measure: "          + mf.toFixed(2)   + "; indice: " + kf   + "; desvio do ground truth: " + res[kf][3]   + "; vetor: (" + res[kf][9].x.toFixed(2)   + ", " + res[kf][9].y.toFixed(2)   + ", " + res[kf][9].z.toFixed(2)   + ")");
 }
 
 
@@ -705,6 +766,60 @@ function teste()
 	exportLink.click();
 
 	canvas.remove();
+}
+
+
+function onDocumentMouseDown(event)
+{
+	// the following line would stop any other event handler from firing (such as the mouse's TrackballControls)
+	// event.preventDefault();
+
+	switch (event.button)
+	{
+		case 0: // left
+			//console.log(event.clientX, event.clientY);
+			vObj.visible         = !vObj.visible;
+			vObjMask.visible     =  vObj.visible;
+			floor.visible        =  vObj.visible;
+			wObj.visible         = !vObj.visible;
+			wPlane.visible       = !vObj.visible;
+			break;
+
+		case 1: // middle
+			var inpt = prompt("Ponto 2D:");
+			if (inpt != "")
+			{
+				var all = inpt.split("\n");
+	//			for (var i = 0; i < all.length; i++)
+				for (var i = 0; i < 1; i++)
+				{
+					console.log("000" + (i + 1));
+					setScene(i + 1);
+
+					vObj.visible         = false;
+					vObjMask.visible     = false;
+					floor.visible        = false;
+					wObj.visible         = true;
+					wPlane.visible       = true;
+					hlObj.visible        = false;
+					hlPoint.visible      = false;
+					arrowHelper.visible  = false;
+					gt.visible           = false;
+
+					setShadowFromSimilarity(all[i].split(" "));
+
+					hlObj.visible        = true;
+					hlPoint.visible      = true;
+					arrowHelper.visible  = true;
+					gt.visible           = true;
+				}
+			}
+			break;
+
+		case 2: // right
+			//teste();
+			break;
+	}
 }
 
 
