@@ -642,7 +642,7 @@ function setShadowFromSimilarity(list)
 	var res = setShadowFromGroundTruth(list);
 	var k = 0;
 	var t = 1.0;
-	var mi = 0, mv = 0;
+	var mi = 0, mv = 99990;
 	var mpre = 0, mrec = 0, mf = 0;
 	var kpre = 0, krec = 0, kf = 0;
 	//console.log(res);
@@ -662,10 +662,10 @@ function setShadowFromSimilarity(list)
 	{
 		mask[x] = [];
 		for (y = 0; y < 256; y++)
-			mask[x][y] = 0;
+			mask[x][y] = 1;
 	}
 	for (k = 0; k < list.length - 1; k += 2)
-		mask[list[k]][list[k + 1]] = 1;
+		mask[list[k]][list[k + 1]] = 0;
 
 	var canvas = document.createElement("canvas");
 	canvas.width  = 256;
@@ -710,7 +710,7 @@ function setShadowFromSimilarity(list)
 		var rec = parseFloat(c00) / parseFloat(c00 + c10);
 		var fme = parseFloat(2 * pre * rec) / parseFloat(pre + rec);
 		var val = Math.abs(uni - int);
-		if (val > mv)
+		if (val < mv)
 		{
 			mv = val;
 			mi = k;
@@ -790,8 +790,7 @@ function onDocumentMouseDown(event)
 			if (inpt != "")
 			{
 				var all = inpt.split("\n");
-	//			for (var i = 0; i < all.length; i++)
-				for (var i = 0; i < 1; i++)
+				for (var i = 0; i < all.length; i++)
 				{
 					console.log("000" + (i + 1));
 					setScene(i + 1);
