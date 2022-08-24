@@ -19,7 +19,7 @@
 <body style='margin : 0px; overflow: hidden; font-family: Monospace;'>
 
 	<a id="exportLink" href="#"></a>
-	<script src="my-script.js"></script>
+	<script src="my-script-v02.js"></script>
 
 </body>
 </html>

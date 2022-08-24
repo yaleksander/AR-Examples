@@ -7,6 +7,7 @@ var emptyObj, vObj, vObjMask, shadowPlane, light, floor;
 var hlObj, hlPoint, arrowHelper, gt, wObj, wPlane;
 var origLight, stoneSphere1, stoneSphere2, metalCylinder, woodCube, rubrikCube, stoneCube1, stoneCube2;
 var asphaltFloor, stoneFloor, grassFloor;
+var gtObj1, gtObj2, gtObj3, gtLine1, gtLine2, gtLine3, gtPlane, phase;
 
 var ray    = new THREE.Raycaster();
 var mouse  = new THREE.Vector2();
@@ -97,7 +98,7 @@ function initialize()
 
 	arToolkitSource = new THREEx.ArToolkitSource({
 		//sourceType: 'webcam'
-		sourceType: 'image', sourceUrl: 'my-images/00006.png',
+		sourceType: 'image', sourceUrl: 'my-images/06_640.jpg',
 		sourceWidth: 640,
 		sourceHeight: 640,
 		displayWidth: 640,
@@ -246,7 +247,7 @@ function initialize()
 	mainScene3.add(scene3);
 
 	var scene0 = new THREE.Group();
-	var markerControls1 = new THREEx.ArMarkerControls(arToolkitContext, scene0, {
+	var markerControls1 = new THREEx.ArMarkerControls(arToolkitContext, scene2, {
 		type: 'pattern', patternUrl: "data/kanji.patt",
 	});
 
@@ -300,6 +301,10 @@ function initialize()
 
 	hlObj         = new THREE.Mesh(sphere3, rMat);
 	hlPoint       = new THREE.Mesh(sphere3, bMat);
+	gtObj1        = new THREE.Mesh(sphere3, gMat);
+	gtObj2        = new THREE.Mesh(sphere3, gMat);
+	gtObj3        = new THREE.Mesh(sphere3, gMat);
+	gtPlane       = new THREE.Mesh(plane,   shadowMat);
 	arrowHelper   = new THREE.ArrowHelper(new THREE.Vector3(0, 1, 0), new THREE.Vector3(0, 0, 0), 1, 0xff0000);
 	gt            = new THREE.ArrowHelper(new THREE.Vector3(0, 1, 0), new THREE.Vector3(0, 0, 0), 1, 0xffff00);
 
@@ -383,6 +388,7 @@ function initialize()
 	shadowPlane.position.y = floor.position.clone().y;
 	wPlane.rotation.x = -Math.PI / 2;
 	wPlane.position.y = floor.position.clone().y - 0.01;
+	gtPlane.rotation.z = -Math.PI / 2;
 
 	/**********************************************************************************************
 	 *
@@ -421,7 +427,8 @@ function initialize()
 	scene2.add(wPlane);
 	scene2.add(wObj);
 
-	document.addEventListener("mousedown", onDocumentMouseDown, false);
+	document.addEventListener("mousedown", onDocumentMouseDown,  false);
+	document.addEventListener("wheel",     onDocumentMouseWheel, false);
 
 	wObj.visible         = false;
 	wPlane.visible       = false;
@@ -433,7 +440,8 @@ function initialize()
 	arrowHelper.visible  = false;
 	gt.visible           = false;
 
-	setScene(1);
+	phase = 0;
+	setScene(0);
 }
 
 
@@ -556,7 +564,25 @@ function setScene(id)
 			stoneFloor.visible    = false;
 			grassFloor.visible    = false;
 			break;
+
+		default:
+			scene2.add(new THREE.Mesh(new THREE.BoxGeometry(2, 2, 2), new THREE.MeshNormalMaterial()));
+			origLight.position.set( 0,  0,  0);
+			vObj.position.set     ( 0,  vObjHeight / 2,  0);
+			vObj.rotation.set     ( 0,  0,  0);
+			stoneSphere1.visible  = false;
+			stoneSphere2.visible  = false;
+			metalCylinder.visible = false;
+			woodCube.visible      = false;
+			rubrikCube.visible    = false;
+			stoneCube1.visible    = false;
+			stoneCube2.visible    = false;
+			asphaltFloor.visible  = false;
+			stoneFloor.visible    = false;
+			grassFloor.visible    = false;
+			break;
 	}
+	mag = (origLight.target.position.clone()).sub(origLight.position.clone()).normalize();
 	vObj.position.y = vObjHeight / 2;
 	update();
 }
@@ -620,8 +646,10 @@ function setShadowFromGroundTruth(list)
 	hlPoint.position.set(res[0][8].x, res[0][8].y, res[0][8].z);
 	scene2.remove(gt);
 	scene2.remove(arrowHelper);
+	//arrowHelper = new THREE.ArrowHelper((res[0][9].clone()).normalize().multiplyScalar(-1), res[0][7], 20, 0xff0000);
+	//gt = new THREE.ArrowHelper((mag.clone()).multiplyScalar(-1), (res[0][8].clone()).add((mag.clone()).multiplyScalar(res[0][9].length())), 20, 0xffff00);
 	arrowHelper = new THREE.ArrowHelper((res[0][9].clone()).normalize().multiplyScalar(-1), res[0][7], 20, 0xff0000);
-	gt = new THREE.ArrowHelper((mag.clone()).multiplyScalar(-1), (res[0][8].clone()).add((mag.clone()).multiplyScalar(res[0][9].length())), 20, 0xffff00);
+	gt = new THREE.ArrowHelper((mag.clone()).multiplyScalar(-1), res[0][7], 20, 0xffff00);
 	scene2.add(arrowHelper);
 	scene2.add(gt);
 	light.target = emptyObj;
@@ -734,8 +762,10 @@ function setShadowFromSimilarity(list)
 	light.position.set(res[mi][6].x, res[mi][6].y, res[mi][6].z);
 	emptyObj.position.set(res[mi][7].x, res[mi][7].y, res[mi][7].z);
 	light.target = emptyObj;
-	arrowHelper = new THREE.ArrowHelper((res[mi][9].clone()).normalize().multiplyScalar(-1), res[mi][7], 20, 0xff0000);
-	gt = new THREE.ArrowHelper((mag.clone()).multiplyScalar(-1), (res[mi][8].clone()).add((mag.clone()).multiplyScalar(res[mi][9].length())), 20, 0xffff00);
+	//arrowHelper = new THREE.ArrowHelper((res[mi][9].clone()).normalize().multiplyScalar(-1), res[mi][7], 20, 0xff0000);
+	//gt = new THREE.ArrowHelper((mag.clone()).multiplyScalar(-1), (res[mi][8].clone()).add((mag.clone()).multiplyScalar(res[mi][9].length())), 20, 0xffff00);
+	arrowHelper = new THREE.ArrowHelper((res[0][9].clone()).normalize().multiplyScalar(-1), res[0][7], 20, 0xff0000);
+	gt = new THREE.ArrowHelper((mag.clone()).multiplyScalar(-1), res[0][7], 20, 0xffff00);
 	scene2.add(arrowHelper);
 	scene2.add(gt);
 	mv = parseFloat(mv) / 65536.0;
@@ -778,11 +808,81 @@ function onDocumentMouseDown(event)
 	{
 		case 0: // left
 			//console.log(event.clientX, event.clientY);
+			/*
 			vObj.visible         = !vObj.visible;
 			vObjMask.visible     =  vObj.visible;
 			floor.visible        =  vObj.visible;
 			wObj.visible         = !vObj.visible;
 			wPlane.visible       = !vObj.visible;
+			*/
+			mouse.x =  ((event.clientX - renderer2.domElement.offsetLeft) / renderer2.domElement.clientWidth)  * 2 - 1;
+			mouse.y = -((event.clientY - renderer2.domElement.offsetTop)  / renderer2.domElement.clientHeight) * 2 + 1;
+			ray.setFromCamera(mouse, camera);
+			switch (phase)
+			{
+				case 0:
+					var i = ray.intersectObject(shadowPlane);
+					if (i.length > 0)
+					{
+						var p = i[0].point;
+						gtObj1.position.set(p.x, p.y, p.z);
+						scene2.add(gtObj1);
+						phase++;
+					}
+					break;
+
+				case 1:
+					var i = ray.intersectObject(shadowPlane);
+					if (i.length > 0)
+					{
+						var p = i[0].point;
+						gtObj2.position.set(p.x, p.y, p.z);
+						gtPlane.position.set(p.x, p.y, p.z);
+						scene2.add(gtObj2);
+						scene2.add(gtPlane);
+						var geo = new THREE.Geometry();
+						geo.vertices.push(gtObj1.position.clone());
+						geo.vertices.push(gtObj2.position.clone());
+						gtLine1 = new THREE.Line(geo, new THREE.LineBasicMaterial({ color: 0x00ff00 }));
+						//scene2.add(new THREE.ArrowHelper(gtObj2.position.clone().sub(gtObj1.position), gtObj1.position, gtObj1.position.distanceTo(gtObj2.position), 0x00ff00));
+						scene2.add(gtLine1);
+						phase++;
+					}
+					break;
+
+				case 2:
+					var i = ray.intersectObject(gtPlane);
+					if (i.length > 0)
+					{
+						var p = i[0].point;
+						gtObj3.position.set(p.x, p.y, p.z);
+						scene2.add(gtObj3);
+//						scene2.remove(gtPlane);
+						var geo1 = new THREE.Geometry();
+						geo1.vertices.push(gtObj2.position.clone());
+						geo1.vertices.push(gtObj3.position.clone());
+						gtLine2 = new THREE.Line(geo1, new THREE.LineBasicMaterial({ color: 0x00ff00 }));
+						var geo2 = new THREE.Geometry();
+						geo2.vertices.push(gtObj3.position.clone());
+						geo2.vertices.push(gtObj1.position.clone());
+						gtLine3 = new THREE.Line(geo2, new THREE.LineBasicMaterial({ color: 0x00ff00 }));
+						scene2.add(gtLine2);
+						scene2.add(gtLine3);
+//						scene2.add(new THREE.ArrowHelper(gtObj3.position.clone().sub(gtObj2.position), gtObj2.position, gtObj2.position.distanceTo(gtObj3.position), 0x00ff00));
+//						scene2.add(new THREE.ArrowHelper(gtObj1.position.clone().sub(gtObj3.position), gtObj3.position, gtObj3.position.distanceTo(gtObj1.position), 0x00ff00));
+						phase++;
+					}
+					break;
+
+				default:
+					scene2.remove(gtObj1);
+					scene2.remove(gtObj2);
+					scene2.remove(gtObj3);
+					scene2.remove(gtLine1);
+					scene2.remove(gtLine2);
+					scene2.remove(gtLine3);
+					phase = 0;
+			}
 			break;
 
 		case 1: // middle
@@ -790,7 +890,7 @@ function onDocumentMouseDown(event)
 			if (inpt != "")
 			{
 				var all = inpt.split("\n");
-				for (var i = 0; i < all.length; i++)
+				for (var i = 0; i < all.length; i += 10)
 				{
 					console.log("000" + (i + 1));
 					setScene(i + 1);
@@ -811,6 +911,12 @@ function onDocumentMouseDown(event)
 					hlPoint.visible      = true;
 					arrowHelper.visible  = true;
 					gt.visible           = true;
+
+					vObj.visible         = true;
+					vObjMask.visible     = true;
+					floor.visible        = true;
+					wObj.visible         = false;
+					wPlane.visible       = false;
 				}
 			}
 			break;
@@ -819,6 +925,16 @@ function onDocumentMouseDown(event)
 			//teste();
 			break;
 	}
+}
+
+
+function onDocumentMouseWheel(event)
+{
+	var opa = shadowPlane.material.opacity;
+	if (event.deltaY > 0)
+		shadowPlane.material.opacity = Math.max(0, opa - 0.05);
+	else if (event.deltaY < 0)
+		shadowPlane.material.opacity = Math.min(1, opa + 0.05);
 }
 
 
@@ -849,7 +965,7 @@ function update()
 
 function render()
 {
-	renderer1.render(mainScene1, camera);
+//	renderer1.render(mainScene1, camera);
 	renderer2.render(mainScene2, camera);
 	renderer3.render(mainScene3, camera);
 }
