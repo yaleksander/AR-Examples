@@ -1,13 +1,14 @@
 var clock, deltaTime, totalTime;
 var arToolkitSource, arToolkitContext;
-var camera, renderer1, renderer2, renderer3;
+var camera, renderer1, renderer, renderer3;
 var mainScene1, mainScene2, mainScene3;
 var scene1, scene2, scene3;
 var emptyObj, vObj, vObjMask, shadowPlane, light, floor;
-var hlObj, hlPoint, arrowHelper, gt, wObj, wPlane;
+var hlObj, hlPoint, arrowHelper, gt, wObj, wPlane, dPlane;
 var origLight, stoneSphere1, stoneSphere2, metalCylinder, woodCube, rubrikCube, stoneCube1, stoneCube2;
 var asphaltFloor, stoneFloor, grassFloor;
 var gtObj1, gtObj2, gtObj3, gtLine1, gtLine2, gtLine3, gtPlane, phase;
+var adjustX, adjustZ;
 
 var ray    = new THREE.Raycaster();
 var mouse  = new THREE.Vector2();
@@ -33,8 +34,8 @@ function initialize()
 
 	// fov (degrees), aspect, near, far
 	//camera = new THREE.PerspectiveCamera(32, 16.0 / 9.0, 1, 1000);
-	camera = new THREE.PerspectiveCamera(32, 1, 1, 1000);
-	//camera = new THREE.Camera();
+	//camera = new THREE.PerspectiveCamera(32, 1, 1, 1000);
+	camera = new THREE.Camera();
 	camera.isPerspectiveCamera = true; // enable ray casting
 	mainScene1.add(camera);
 	mainScene2.add(camera);
@@ -45,7 +46,7 @@ function initialize()
 	 * Renderers e canvas
 	 *
 	 *********************************************************************************************/
-
+/*
 	renderer1 = new THREE.WebGLRenderer({
 		preserveDrawingBuffer: true,
 		antialias: true,
@@ -58,20 +59,20 @@ function initialize()
 	renderer1.domElement.style.left = '0px';
 	renderer1.shadowMap.enabled = true;
 	document.body.appendChild(renderer1.domElement);
-
-	renderer2 = new THREE.WebGLRenderer({
+*/
+	renderer = new THREE.WebGLRenderer({
 		preserveDrawingBuffer: true,
 		antialias: true,
 		alpha: true
 	});
-	renderer2.setClearColor(new THREE.Color('lightgrey'), 0);
-	renderer2.setSize(640, 640);
-	renderer2.domElement.style.position = 'absolute';
-	renderer2.domElement.style.top = '0px';
-	renderer2.domElement.style.left = '0px';
-	renderer2.shadowMap.enabled = true;
-	document.body.appendChild(renderer2.domElement);
-
+	renderer.setClearColor(new THREE.Color('lightgrey'), 0);
+	renderer.setSize(640, 640);
+	renderer.domElement.style.position = 'absolute';
+	renderer.domElement.style.top = '0px';
+	renderer.domElement.style.left = '0px';
+	renderer.shadowMap.enabled = true;
+	document.body.appendChild(renderer.domElement);
+/*
 	renderer3 = new THREE.WebGLRenderer({
 		preserveDrawingBuffer: true,
 		antialias: true,
@@ -85,7 +86,7 @@ function initialize()
 	renderer3.domElement.style.left = '640px';
 	renderer3.shadowMap.enabled = true;
 	document.body.appendChild(renderer3.domElement);
-
+*/
 	clock = new THREE.Clock();
 	deltaTime = 0;
 	totalTime = 0;
@@ -98,32 +99,33 @@ function initialize()
 
 	arToolkitSource = new THREEx.ArToolkitSource({
 		//sourceType: 'webcam'
-		sourceType: 'image', sourceUrl: 'my-images/06_640.jpg',
-		sourceWidth: 640,
-		sourceHeight: 640,
-		displayWidth: 640,
-		displayHeight: 640
+//		sourceType: 'image', sourceUrl: 'my-images/index.jpeg',
+		sourceType: 'image', sourceUrl: 'my-images/10001.jpg',
+//		sourceWidth: 640,
+//		sourceHeight: 480,
+//		displayWidth: 640,
+//		displayHeight: 640
 	});
 
 	function onResize() // disabled
 	{
-		//arToolkitSource.onResize()	
-		//arToolkitSource.copySizeTo(renderer.domElement)	
-		/*if ( arToolkitContext.arController !== null )
+		arToolkitSource.onResize()	
+		arToolkitSource.copySizeTo(renderer.domElement)	
+		if ( arToolkitContext.arController !== null )
 		{
 			arToolkitSource.copySizeTo(arToolkitContext.arController.canvas)
-		}*/
+		}
 	}
 
 	arToolkitSource.init(function onReady(){
 		onResize()
 	});
-/*
+
 	// handle resize event
 	window.addEventListener('resize', function(){
 		onResize()
 	});
-*/	
+
 	// create atToolkitContext
 	arToolkitContext = new THREEx.ArToolkitContext({
 		cameraParametersUrl: 'data/camera_para.dat',
@@ -133,8 +135,8 @@ function initialize()
 	// copy projection matrix to camera when initialization complete
 	arToolkitContext.init(function onCompleted(){
 		camera.projectionMatrix.copy( arToolkitContext.getProjectionMatrix() );
-		camera.aspect = 1.0;
-		camera.updateProjectionMatrix();
+		//camera.aspect = 1.0;
+		//camera.updateProjectionMatrix();
 	});
 
 
@@ -145,7 +147,16 @@ function initialize()
 	 *********************************************************************************************/
 
 	planeSize  = 150.00;
-	vObjHeight =   1.35;
+	vObjHeight =   1.20;
+	adjustX    =   0.00;
+	adjustZ    =   0.00;
+
+	// 00000: 1.5, -0.1,  0.0
+	// 00608: 1.7,  0.2, -0.2
+	// 01453: 1.8,  0.0, -0.4
+	// 01625: 1.6, -0.2, -0.1
+	// 01836: 1.8, -0.2, -0.4
+	// 01840: 1.8, -0.2, -0.4
 
 	/**********************************************************************************************
 	 *
@@ -217,6 +228,11 @@ function initialize()
 		opacity: 0.15
 	});
 
+	var blackMat = new THREE.MeshBasicMaterial({
+		color: 0x000000,
+		side: THREE.DoubleSide,
+	});
+
 	var rMat = new THREE.MeshBasicMaterial({
 		color: 0xff0000,
 		side: THREE.DoubleSide
@@ -229,6 +245,12 @@ function initialize()
 
 	var bMat = new THREE.MeshBasicMaterial({
 		color: 0x0000ff,
+		side: THREE.DoubleSide
+	});
+
+	var nMat = new THREE.MeshNormalMaterial({
+		transparent: true,
+		opacity: 0.5,
 		side: THREE.DoubleSide
 	});
 
@@ -298,13 +320,15 @@ function initialize()
 	wObj          = new THREE.Mesh(cube,    maskMat);
 	shadowPlane   = new THREE.Mesh(plane,   shadowMat);
 	wPlane        = new THREE.Mesh(plane,   maskMat);
+	dPlane        = new THREE.Mesh(plane,   blackMat);
 
 	hlObj         = new THREE.Mesh(sphere3, rMat);
 	hlPoint       = new THREE.Mesh(sphere3, bMat);
 	gtObj1        = new THREE.Mesh(sphere3, gMat);
 	gtObj2        = new THREE.Mesh(sphere3, gMat);
 	gtObj3        = new THREE.Mesh(sphere3, gMat);
-	gtPlane       = new THREE.Mesh(plane,   shadowMat);
+	gtPlane       = new THREE.Mesh(plane,   bMat);
+	//gtPlane       = new THREE.Mesh(plane,   shadowMat);
 	arrowHelper   = new THREE.ArrowHelper(new THREE.Vector3(0, 1, 0), new THREE.Vector3(0, 0, 0), 1, 0xff0000);
 	gt            = new THREE.ArrowHelper(new THREE.Vector3(0, 1, 0), new THREE.Vector3(0, 0, 0), 1, 0xffff00);
 
@@ -388,6 +412,8 @@ function initialize()
 	shadowPlane.position.y = floor.position.clone().y;
 	wPlane.rotation.x = -Math.PI / 2;
 	wPlane.position.y = floor.position.clone().y - 0.01;
+	dPlane.rotation.x = -Math.PI / 2;
+	dPlane.position.y = floor.position.clone().y - 0.01;
 	gtPlane.rotation.z = -Math.PI / 2;
 
 	/**********************************************************************************************
@@ -425,6 +451,7 @@ function initialize()
 	scene3.add(vObjMask);
 
 	scene2.add(wPlane);
+	scene2.add(dPlane);
 	scene2.add(wObj);
 
 	document.addEventListener("mousedown", onDocumentMouseDown,  false);
@@ -432,6 +459,7 @@ function initialize()
 
 	wObj.visible         = false;
 	wPlane.visible       = false;
+	dPlane.visible       = false;
 	vObjMask.visible     = true;
 
 	vObj.castShadow      = true;
@@ -442,6 +470,7 @@ function initialize()
 
 	phase = 0;
 	setScene(0);
+	scene2.scale.set(0.5, 0.5, 0.5);
 }
 
 
@@ -566,10 +595,10 @@ function setScene(id)
 			break;
 
 		default:
-			scene2.add(new THREE.Mesh(new THREE.BoxGeometry(2, 2, 2), new THREE.MeshNormalMaterial()));
-			origLight.position.set( 0,  0,  0);
-			vObj.position.set     ( 0,  vObjHeight / 2,  0);
-			vObj.rotation.set     ( 0,  0,  0);
+			console.log("!");
+			origLight.position.set(0, -1, 0);
+			vObj.position.set     (adjustX, vObjHeight / 2, adjustZ);
+			vObj.rotation.set     (0, 0, 0);
 			stoneSphere1.visible  = false;
 			stoneSphere2.visible  = false;
 			metalCylinder.visible = false;
@@ -608,15 +637,15 @@ function setShadowFromGroundTruth(list)
 
 	while (k < list.length)
 	{
-		x = Math.round(list[k++] * 2.5);
-		y = Math.round(list[k++] * 2.5);
-		mouse.x =  ((x - renderer2.domElement.offsetLeft) / renderer2.domElement.clientWidth)  * 2 - 1;
-		mouse.y = -((y - renderer2.domElement.offsetTop)  / renderer2.domElement.clientHeight) * 2 + 1;
+		x = Math.round(      list[k++]  * renderer.domElement.clientWidth  / 256);
+		y = Math.round((32 + list[k++]) * renderer.domElement.clientHeight / 192);
+		mouse.x =  ((x - renderer.domElement.offsetLeft) / renderer.domElement.clientWidth)  * 2 - 1;
+		mouse.y = -((y - renderer.domElement.offsetTop)  / renderer.domElement.clientHeight) * 2 + 1;
 		ray.setFromCamera(mouse, camera);
 		var i = ray.intersectObject(shadowPlane);
 		if (i.length > 0)
 		{
-			var p = i[0].point;
+			var p = new THREE.Vector3((i[0].uv.x - 0.5) * planeSize, shadowPlane.position.y, (0.5 - i[0].uv.y) * planeSize);
 			var top = new THREE.Vector3();
 			for (var j = 0; j < v.length; j++)
 			{
@@ -654,19 +683,13 @@ function setShadowFromGroundTruth(list)
 	scene2.add(gt);
 	light.target = emptyObj;
 	return res;
-	var txt = "";
-	for (var k = 0; k < res.length; k++)
-		for (var j = 0; j < 5; j++)
-			txt += Math.round(res[k][2].x) + "\t" + Math.round(res[k][2].y) + "\t" + Math.round(res[k][2].z) + "\t" + res[k][0] + "\t" + res[k][1] + "\t" + res[k][3] + "\t" + res[k][4] + (res[k][5] == 2 ? "\t(center)" : "") + "\n";
-	var a = document.createElement("a");
-	a.href = window.URL.createObjectURL(new Blob([txt], {type: "text/plain"}));
-	a.download = "results.txt";
-	a.click();
 }
 
 
 function setShadowFromSimilarity(list)
 {
+	console.log("getting all light vectors list");
+
 	var res = setShadowFromGroundTruth(list);
 	var k = 0;
 	var t = 1.0;
@@ -685,6 +708,9 @@ function setShadowFromSimilarity(list)
 	}
 	//console.log(res);
 
+	console.log("getting best shadow from render comparison");
+	console.log("(" + res.length + " possibilities)");
+
 	var mask = [];
 	for (x = 0; x < 256; x++)
 	{
@@ -702,15 +728,34 @@ function setShadowFromSimilarity(list)
 	ctx.fillStyle = "white";
 	scene2.remove(gt);
 	scene2.remove(arrowHelper);
-	
+
+	var rend = new THREE.WebGLRenderer({
+		preserveDrawingBuffer: true,
+		antialias: true,
+		alpha: true
+	});
+	rend.setClearColor(new THREE.Color('white'), 0);
+	rend.setSize(256, 256);
+	rend.shadowMap.enabled = true;
+
 	for (k = 0; k < res.length; k++)
 	{
 		light.position.set(res[k][6].x, res[k][6].y, res[k][6].z);
 		emptyObj.position.set(res[k][7].x, res[k][7].y, res[k][7].z);
 		light.target = emptyObj;
-		renderer2.render(mainScene2, camera);
+		rend.render(mainScene2, camera);
 		ctx.fillRect(0, 0, 256, 256);
-		ctx.drawImage(renderer2.domElement, 0, 0, 256, 256);
+//		ctx.drawImage(renderer.domElement, 0, 0, 256, 256);
+		ctx.drawImage(rend.domElement, 0, 32, 256, 192);
+/*
+		if (k == 5)
+		{
+			var link = document.getElementById('exportLink');
+			link.setAttribute('download', 'test.png');
+			link.setAttribute('href', canvas.toDataURL("image/png").replace("image/png", "image/octet-stream"));
+			link.click();
+		}
+*/
 		var c00 = 0;
 		var c01 = 0;
 		var c10 = 0;
@@ -769,10 +814,10 @@ function setShadowFromSimilarity(list)
 	scene2.add(arrowHelper);
 	scene2.add(gt);
 	mv = parseFloat(mv) / 65536.0;
-	console.log("Uniao - intersecao: " + mv.toFixed(2)   + "; indice: " + mi   + "; desvio do ground truth: " + res[mi][3]   + "; vetor: (" + res[mi][9].x.toFixed(2)   + ", " + res[mi][9].y.toFixed(2)   + ", " + res[mi][9].z.toFixed(2)   + ")");
-	console.log("Precisao: "           + mpre.toFixed(2) + "; indice: " + kpre + "; desvio do ground truth: " + res[kpre][3] + "; vetor: (" + res[kpre][9].x.toFixed(2) + ", " + res[kpre][9].y.toFixed(2) + ", " + res[kpre][9].z.toFixed(2) + ")");
-	console.log("Recall: "             + mrec.toFixed(2) + "; indice: " + krec + "; desvio do ground truth: " + res[krec][3] + "; vetor: (" + res[krec][9].x.toFixed(2) + ", " + res[krec][9].y.toFixed(2) + ", " + res[krec][9].z.toFixed(2) + ")");
-	console.log("F-measure: "          + mf.toFixed(2)   + "; indice: " + kf   + "; desvio do ground truth: " + res[kf][3]   + "; vetor: (" + res[kf][9].x.toFixed(2)   + ", " + res[kf][9].y.toFixed(2)   + ", " + res[kf][9].z.toFixed(2)   + ")");
+//	console.log("Uniao - intersecao: " + mv.toFixed(2)   + "; indice: " + mi   + "; desvio do ground truth: " + res[mi][3]   + "; vetor: (" + res[mi][9].x.toFixed(2)   + ", " + res[mi][9].y.toFixed(2)   + ", " + res[mi][9].z.toFixed(2)   + ")");
+//	console.log("Precisao: "           + mpre.toFixed(2) + "; indice: " + kpre + "; desvio do ground truth: " + res[kpre][3] + "; vetor: (" + res[kpre][9].x.toFixed(2) + ", " + res[kpre][9].y.toFixed(2) + ", " + res[kpre][9].z.toFixed(2) + ")");
+//	console.log("Recall: "             + mrec.toFixed(2) + "; indice: " + krec + "; desvio do ground truth: " + res[krec][3] + "; vetor: (" + res[krec][9].x.toFixed(2) + ", " + res[krec][9].y.toFixed(2) + ", " + res[krec][9].z.toFixed(2) + ")");
+//	console.log("F-measure: "          + mf.toFixed(2)   + "; indice: " + kf   + "; desvio do ground truth: " + res[kf][3]   + "; vetor: (" + res[kf][9].x.toFixed(2)   + ", " + res[kf][9].y.toFixed(2)   + ", " + res[kf][9].z.toFixed(2)   + ")");
 }
 
 
@@ -783,7 +828,7 @@ function teste()
 	canvas.height = 640;
 	var ctx = canvas.getContext("2d");
 	ctx.drawImage(renderer1.domElement, 0, 0, 640, 640);
-	ctx.drawImage(renderer2.domElement, 0, 0, 640, 640);
+	ctx.drawImage(renderer.domElement, 0, 0, 640, 640);
 	exportLink.href = canvas.toDataURL('image/png');
 	exportLink.download = 'noshadow.png';
 	exportLink.click();
@@ -808,15 +853,14 @@ function onDocumentMouseDown(event)
 	{
 		case 0: // left
 			//console.log(event.clientX, event.clientY);
-			/*
 			vObj.visible         = !vObj.visible;
 			vObjMask.visible     =  vObj.visible;
 			floor.visible        =  vObj.visible;
 			wObj.visible         = !vObj.visible;
-			wPlane.visible       = !vObj.visible;
-			*/
-			mouse.x =  ((event.clientX - renderer2.domElement.offsetLeft) / renderer2.domElement.clientWidth)  * 2 - 1;
-			mouse.y = -((event.clientY - renderer2.domElement.offsetTop)  / renderer2.domElement.clientHeight) * 2 + 1;
+			dPlane.visible       = !vObj.visible;
+			/*
+			mouse.x =  ((event.clientX - renderer.domElement.offsetLeft) / renderer.domElement.clientWidth)  * 2 - 1;
+			mouse.y = -((event.clientY - renderer.domElement.offsetTop)  / renderer.domElement.clientHeight) * 2 + 1;
 			ray.setFromCamera(mouse, camera);
 			switch (phase)
 			{
@@ -825,7 +869,7 @@ function onDocumentMouseDown(event)
 					if (i.length > 0)
 					{
 						var p = i[0].point;
-						gtObj1.position.set(p.x, p.y, p.z);
+						gtObj1.position.set((i[0].uv.x - 0.5) * planeSize, shadowPlane.position.y, (0.5 - i[0].uv.y) * planeSize);
 						scene2.add(gtObj1);
 						phase++;
 					}
@@ -836,15 +880,15 @@ function onDocumentMouseDown(event)
 					if (i.length > 0)
 					{
 						var p = i[0].point;
-						gtObj2.position.set(p.x, p.y, p.z);
-						gtPlane.position.set(p.x, p.y, p.z);
+						gtObj2.position.set((i[0].uv.x - 0.5) * planeSize, shadowPlane.position.y, (0.5 - i[0].uv.y) * planeSize);
+						gtPlane.position.set((i[0].uv.x - 0.5) * planeSize, shadowPlane.position.y, (0.5 - i[0].uv.y) * planeSize);
+						gtPlane.lookAt(camera.position);
 						scene2.add(gtObj2);
 						scene2.add(gtPlane);
 						var geo = new THREE.Geometry();
 						geo.vertices.push(gtObj1.position.clone());
 						geo.vertices.push(gtObj2.position.clone());
 						gtLine1 = new THREE.Line(geo, new THREE.LineBasicMaterial({ color: 0x00ff00 }));
-						//scene2.add(new THREE.ArrowHelper(gtObj2.position.clone().sub(gtObj1.position), gtObj1.position, gtObj1.position.distanceTo(gtObj2.position), 0x00ff00));
 						scene2.add(gtLine1);
 						phase++;
 					}
@@ -854,10 +898,10 @@ function onDocumentMouseDown(event)
 					var i = ray.intersectObject(gtPlane);
 					if (i.length > 0)
 					{
-						var p = i[0].point;
-						gtObj3.position.set(p.x, p.y, p.z);
+						gtObj3.position.set(gtObj2.position.x, (i[0].uv.y - 0.5) * planeSize, gtObj2.position.z);
+						console.log(gtObj3.position.x, gtObj3.position.y, gtObj3.position.z);
 						scene2.add(gtObj3);
-//						scene2.remove(gtPlane);
+						scene2.remove(gtPlane);
 						var geo1 = new THREE.Geometry();
 						geo1.vertices.push(gtObj2.position.clone());
 						geo1.vertices.push(gtObj3.position.clone());
@@ -868,8 +912,6 @@ function onDocumentMouseDown(event)
 						gtLine3 = new THREE.Line(geo2, new THREE.LineBasicMaterial({ color: 0x00ff00 }));
 						scene2.add(gtLine2);
 						scene2.add(gtLine3);
-//						scene2.add(new THREE.ArrowHelper(gtObj3.position.clone().sub(gtObj2.position), gtObj2.position, gtObj2.position.distanceTo(gtObj3.position), 0x00ff00));
-//						scene2.add(new THREE.ArrowHelper(gtObj1.position.clone().sub(gtObj3.position), gtObj3.position, gtObj3.position.distanceTo(gtObj1.position), 0x00ff00));
 						phase++;
 					}
 					break;
@@ -882,7 +924,7 @@ function onDocumentMouseDown(event)
 					scene2.remove(gtLine2);
 					scene2.remove(gtLine3);
 					phase = 0;
-			}
+			}*/
 			break;
 
 		case 1: // middle
@@ -892,9 +934,9 @@ function onDocumentMouseDown(event)
 				var all = inpt.split("\n");
 				for (var i = 0; i < all.length; i += 10)
 				{
-					console.log("000" + (i + 1));
-					setScene(i + 1);
-
+//					console.log("000" + (i + 1));
+//					setScene(i + 1);
+/*
 					vObj.visible         = false;
 					vObjMask.visible     = false;
 					floor.visible        = false;
@@ -904,13 +946,14 @@ function onDocumentMouseDown(event)
 					hlPoint.visible      = false;
 					arrowHelper.visible  = false;
 					gt.visible           = false;
-
+*/
 					setShadowFromSimilarity(all[i].split(" "));
+					console.log("done!");
 
-					hlObj.visible        = true;
-					hlPoint.visible      = true;
-					arrowHelper.visible  = true;
-					gt.visible           = true;
+					hlObj.visible        = false;
+					hlPoint.visible      = false;
+					arrowHelper.visible  = false;
+					gt.visible           = false;
 
 					vObj.visible         = true;
 					vObjMask.visible     = true;
@@ -966,8 +1009,8 @@ function update()
 function render()
 {
 //	renderer1.render(mainScene1, camera);
-	renderer2.render(mainScene2, camera);
-	renderer3.render(mainScene3, camera);
+	renderer.render(mainScene2, camera);
+//	renderer3.render(mainScene3, camera);
 }
 
 

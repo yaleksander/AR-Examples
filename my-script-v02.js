@@ -7,7 +7,7 @@ var emptyObj, vObj, vObjMask, shadowPlane, light, floor;
 var hlObj, hlPoint, arrowHelper, gt, wObj, wPlane;
 var origLight, stoneSphere1, stoneSphere2, metalCylinder, woodCube, rubrikCube, stoneCube1, stoneCube2;
 var asphaltFloor, stoneFloor, grassFloor;
-var gtObj1, gtObj2, gtObj3, gtLine1, gtLine2, gtLine3, gtPlane, phase;
+var gtObj1, gtObj2, gtObj3, gtLine1, gtLine2, gtLine3, gtPlane, phase, scene_id;
 
 var ray    = new THREE.Raycaster();
 var mouse  = new THREE.Vector2();
@@ -21,6 +21,8 @@ animate();
 
 function initialize()
 {
+	scene_id = 1;
+
 	/**********************************************************************************************
 	 *
 	 * Cenas e iluminação
@@ -441,7 +443,7 @@ function initialize()
 	gt.visible           = false;
 
 	phase = 0;
-	setScene(1);
+	setScene(scene_id);
 }
 
 
@@ -790,15 +792,11 @@ function onDocumentMouseDown(event)
 	switch (event.button)
 	{
 		case 0: // left
-			//console.log(event.clientX, event.clientY);
-			/*
-			vObj.visible         = !vObj.visible;
-			vObjMask.visible     =  vObj.visible;
-			floor.visible        =  vObj.visible;
-			wObj.visible         = !vObj.visible;
-			wPlane.visible       = !vObj.visible;
-			*/
-			mouse.x =  ((event.clientX - renderer2.domElement.offsetLeft) / renderer2.domElement.clientWidth)  * 2 - 1;
+			scene_id++;
+			if (scene_id > 6)
+				scene_id = 1;
+			setScene(scene_id);
+			/*mouse.x =  ((event.clientX - renderer2.domElement.offsetLeft) / renderer2.domElement.clientWidth)  * 2 - 1;
 			mouse.y = -((event.clientY - renderer2.domElement.offsetTop)  / renderer2.domElement.clientHeight) * 2 + 1;
 			ray.setFromCamera(mouse, camera);
 			switch (phase)
@@ -865,7 +863,7 @@ function onDocumentMouseDown(event)
 					scene2.remove(gtLine2);
 					scene2.remove(gtLine3);
 					phase = 0;
-			}
+			}*/
 			break;
 
 		case 1: // middle
@@ -874,7 +872,8 @@ function onDocumentMouseDown(event)
 			{
 				var all = inpt.split("\n");
 				console.log(all.length);
-				for (var i = 0; i < all.length; i++)
+				for (var i = scene_id - 1; i < all.length; i += 10)
+//				for (var i = 0; i < all.length; i++)
 				{
 					console.log("000" + (i + 1));
 					setScene(i + 1);
