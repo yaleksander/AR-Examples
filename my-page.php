@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<html>
 <head>
 	<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
 	<meta content="text/html;charset=utf-8" http-equiv="Content-Type">
@@ -18,6 +18,8 @@
 
 <body style='margin : 0px; overflow: hidden; font-family: Monospace;'>
 
+	<a id="files" style="display: none"><?php echo implode(";", array_diff(scandir("my-images/current"), array(".", "..")));?></a>
+	<a id="text" style="color: red"></a>
 	<a id="exportLink" href="#"></a>
 	<script src="my-script.js"></script>
 
