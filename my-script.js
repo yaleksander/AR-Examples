@@ -9,7 +9,7 @@ var origLight, stoneSphere1, stoneSphere2, metalCylinder, woodCube, rubrikCube, 
 var asphaltFloor, stoneFloor, grassFloor;
 var gtObj1, gtObj2, gtObj3, gtLine1, gtLine2, gtLine3, gtPlane, phase;
 var adjustX, adjustZ;
-var lightFm, emptyObjFm;
+var lightFm, emptyObjFm, lp, ltp, lfp, lftp, whichLight = true;
 var files, fc, uival, fmval, done = false;
 
 var ray    = new THREE.Raycaster();
@@ -21,6 +21,17 @@ var mag;
 
 initialize();
 animate();
+
+function onResize()
+{
+	arToolkitSource.onResizeElement()	
+	arToolkitSource.copyElementSizeTo(renderer.domElement)	
+	if ( arToolkitContext.arController !== null )
+	{
+		arToolkitSource.copyElementSizeTo(arToolkitContext.arController.canvas)
+	}
+}
+
 
 function initialize()
 {
@@ -99,25 +110,19 @@ function initialize()
 	 *
 	 *********************************************************************************************/
 
+	fc = 0;
+	files = document.getElementById("files").innerHTML.split(";");
+	contours = document.getElementById("contours").innerHTML.split("\n");
+
 	arToolkitSource = new THREEx.ArToolkitSource({
 		//sourceType: 'webcam'
 //		sourceType: 'image', sourceUrl: 'my-images/index.jpeg',
-		sourceType: 'image', sourceUrl: 'my-images/current/01.jpg',
+		sourceType: 'image', sourceUrl: 'my-images/current/' + files[fc],
 //		sourceWidth: 640,
 //		sourceHeight: 480,
 //		displayWidth: 640,
 //		displayHeight: 640
 	});
-
-	function onResize() // disabled
-	{
-		arToolkitSource.onResizeElement()	
-		arToolkitSource.copyElementSizeTo(renderer.domElement)	
-		if ( arToolkitContext.arController !== null )
-		{
-			arToolkitSource.copyElementSizeTo(arToolkitContext.arController.canvas)
-		}
-	}
 
 	arToolkitSource.init(function onReady(){
 		onResize()
@@ -466,6 +471,7 @@ function initialize()
 	scene2.add(wObj);
 
 	document.addEventListener("mousedown", onDocumentMouseDown,  false);
+	document.addEventListener("keydown",   onDocumentKeyDown,    false);
 	document.addEventListener("wheel",     onDocumentMouseWheel, false);
 
 	wObj.visible         = false;
@@ -485,8 +491,7 @@ function initialize()
 	setScene(0);
 	scene2.scale.set(0.5, 0.5, 0.5);
 
-	fc = 0;
-	files = document.getElementById("files").innerHTML.split(";");
+	//scene2.add(gtObj1);
 }
 
 
@@ -611,8 +616,8 @@ function setScene(id)
 			break;
 
 		default:
-			origLight.position.set(0, 1, 0);
-			light.position.set    (0, 1, 0);
+			origLight.position.set(10 * vObjHeight, vObjHeight / 2, vObjHeight / 2);
+			light.position.set    (10 * vObjHeight, vObjHeight / 2, vObjHeight / 2);
 //			console.log(light.position);
 //			console.log(light.target.position);
 			vObj.position.set     (adjustX, vObjHeight / 2, adjustZ);
@@ -635,125 +640,127 @@ function setScene(id)
 }
 
 
-function setShadowFromGroundTruth(list)
+function setShadowFromGroundTruth(list, debug = false)
 {
+	console.log("start");
+
+	var v1     = [];
+	var v2     = [];
+	var v3     = [];
+	var v4     = [];
+	var vDebug = [];
+
+	// adquire conjunto de pontos a partir dos vertices do objeto virtual
 	var k = 0;
-	var res = [];
 	var position = vObj.geometry.attributes.position;
-	var v = [];
-	var v0 = new THREE.Vector3();
-	for (var n = 0; n < position.count; n++)
+	for (var i = 0; i < position.count; i++)
+		v1.push(new THREE.Vector3().fromBufferAttribute(position, i));
+	getMidPoints(v1, 0.001, 1);
+	for (var i = 0; i < v1.length; i++)
 	{
-		v0.fromBufferAttribute(position, n);
-		for (k = 0; k < v.length; k++)
-			if ((Math.abs(v0.x - v[k].x) + Math.abs(v0.y - v[k].y) + Math.abs(v0.z - v[k].z)) < 0.01)
-				break;
-		if (k == v.length && v0.y > 0)
-			v.push(v0.clone());
-	}
-	getMidPoints(v, 0.001, 1);
-
-	for (var n = 0; n < v.length; n++)
-	{
-		v[n].x += vObj.position.x;
-		v[n].y += vObj.position.y;
-		v[n].z += vObj.position.z;
+		v1[i].x += vObj.position.x;
+		v1[i].y += vObj.position.y;
+		v1[i].z += vObj.position.z;
+//		if (v1[i].y < 0.5)
+//			v1.splice(i--, 1);
+		if (debug)
+		{
+			var newObj = new THREE.Mesh(new THREE.SphereGeometry(0.05), new THREE.MeshBasicMaterial({ color: 0x0000ff }));
+			newObj.position.set(v1[i].x, v1[i].y, v1[i].z);
+//			newObj.renderOrder = globalRenderOrder++;
+			vDebug.push(newObj.clone());
+		}
 	}
 
+	console.log("get floor points");
+
+	// adquire conjunto de pontos a partir dos pontos 2d da sombra
 	k = 0;
 	while (k < list.length)
 	{
-		x = Math.round(((100 + parseInt(list[k++])) / 455.0) * renderer.domElement.clientWidth);
-		y = Math.round((       parseInt(list[k++])  / 256.0) * renderer.domElement.clientHeight);
-		mouse.x =  ((x - renderer.domElement.offsetLeft) / renderer.domElement.clientWidth)  * 2 - 1;
-		mouse.y = -((y - renderer.domElement.offsetTop)  / renderer.domElement.clientHeight) * 2 + 1;
-//		console.log(renderer.domElement.clientWidth, renderer.domElement.clientHeight, list[k - 2], list[k - 1], x, y, mouse.x, mouse.y);
+		var w    = renderer.domElement.clientWidth;
+		var h    = renderer.domElement.clientHeight;
+		var padw = (w > h) ? Math.floor((w - h) / 2.0) : 0;
+		var padh = (h > w) ? Math.floor((h - w) / 2.0) : 0;
+		var m    = ((w > h) ? h : w) / 256.0;
+		x        = parseInt(list[k++]) * m + padw;
+		y        = parseInt(list[k++]) * m + padh;
+		mouse.x  =  (x / w) * 2 - 1;
+		mouse.y  = -(y / h) * 2 + 1;
+
 		ray.setFromCamera(mouse, camera);
 		var i = ray.intersectObject(shadowPlane);
 		if (i.length > 0)
+			v2.push(new THREE.Vector3((i[0].uv.x - 0.5) * planeSize, shadowPlane.position.y, (0.5 - i[0].uv.y) * planeSize));
+	}
+
+	console.log("shrink list");
+
+	// reduz o tamanho da segunda lista
+	var t = 0.2;
+	for (var i = 0; i < v2.length - 1; i++)
+		for (var j = i + 1; j < v2.length; j++)
+			if (v2[i].distanceTo(v2[j]) < t)
+				v2.splice(j--, 1);
+
+	if (debug)
+	{
+		for (var i = 0; i < v2.length; i++)
 		{
-			var p = new THREE.Vector3((i[0].uv.x - 0.5) * planeSize, shadowPlane.position.y, (0.5 - i[0].uv.y) * planeSize);
-			var top = new THREE.Vector3();
-			for (var j = 0; j < v.length; j++)
-			{
-				top = v[j].clone();
-				var vt = top.clone();
-				var atb = p.clone().sub(top); // A to B
-				top.add((atb.clone()).multiplyScalar(-1)); // multiplicar por um valor mais alto (mais baixo, já que é menor que 0) se necessário
-				light.position.set(top.x, top.y, top.z);
-				emptyObj.position.set(p.x, p.y, p.z);
-				light.target = emptyObj;
-				var atbp = atb.clone();
-				atbp.y = 0;
-				res.push([x, y, v[j].clone(), (Math.round(100 * atb.angleTo(mag) * 180 / Math.PI) / 100).toFixed(2), (Math.round(100 * atbp.angleTo(mag) * 180 / Math.PI) / 100).toFixed(2), k, top.clone(), p.clone(), vt.clone(), atb.clone()]);
-			}
+			var newObj = new THREE.Mesh(new THREE.SphereGeometry(0.05), new THREE.MeshBasicMaterial({ color: 0x00ff00 }));
+			newObj.position.set(v2[i].x, v2[i].y, v2[i].z);
+//			newObj.renderOrder = globalRenderOrder++;
+			vDebug.push(newObj.clone());
 		}
 	}
-	res.sort(function(a, b)
+
+	console.log("combine");
+
+	// liga os pontos
+	var v4 = [];
+	for (var i = 0; i < v1.length; i++)
 	{
-		return a[3] - b[3];
+		for (var j = 0; j < v2.length; j++)
+		{
+			var aux = v1[i].clone().sub(v2[j].clone());
+			var v   = aux.clone().normalize().multiplyScalar(1).add(v1[i].clone());
+			v4.push([v1[i], v2[j], v, aux, Math.atan2(aux.z, aux.x) * 180 / Math.PI + 180]);
+		}
+	}
+
+	console.log("sort");
+
+	// ordena a lista
+	v4.sort(function(a, b)
+	{
+		return a[4] - b[4];
 	});
-	//alert(res[0][3]);
-	//console.log(res[0][3]);
-	light.position.set(res[0][6].x, res[0][6].y, res[0][6].z);
-	emptyObj.position.set(res[0][7].x, res[0][7].y, res[0][7].z);
-	hlObj.position.set(res[0][7].x, res[0][7].y, res[0][7].z);
-	hlPoint.position.set(res[0][8].x, res[0][8].y, res[0][8].z);
-	scene2.remove(gt);
-	scene2.remove(arrowHelper);
-	//arrowHelper = new THREE.ArrowHelper((res[0][9].clone()).normalize().multiplyScalar(-1), res[0][7], 20, 0xff0000);
-	//gt = new THREE.ArrowHelper((mag.clone()).multiplyScalar(-1), (res[0][8].clone()).add((mag.clone()).multiplyScalar(res[0][9].length())), 20, 0xffff00);
-	arrowHelper = new THREE.ArrowHelper((res[0][9].clone()).normalize().multiplyScalar(-1), res[0][7], 20, 0xff0000);
-	gt = new THREE.ArrowHelper((mag.clone()).multiplyScalar(-1), res[0][7], 20, 0xffff00);
-	scene2.add(arrowHelper);
-	scene2.add(gt);
-	light.target = emptyObj;
-	return res;
-}
 
+	console.log(v4.length);
 
-function setShadowFromSimilarity(list)
-{
-	console.log("getting all light vectors list");
+	// reduz o tamaho da lista final
+	/*
+	var v3 = [];
+	var step = Math.ceil(v4.length / 200);
+	for (var i = 0; i < v4.length; i += step)
+		v3.push(v4[i]);
+	*/
+	v3 = v4;
 
-	var res = setShadowFromGroundTruth(list);
-	var k = 0;
-	var t = 1.0;
-	var mi = 0, mv = 99990;
-	var mpre = 0, mrec = 0, mf = 0;
-	var kpre = 0, krec = 0, kf = 0;
-	//console.log(res);
-	while (k < res.length - 1 && res[k] != undefined && res[k + 1] != undefined)
-	{
-		var a = parseFloat(res[k][3]);
-		var b = parseFloat(res[k + 1][3]);
-		if (Math.abs(a - b) < t)
-			res.splice(k + 1, 1);
-		else
-			k++;
-	}
-	//console.log(res);
+	console.log("compare");
 
-	console.log("getting best shadow from render comparison");
-	console.log("(" + res.length + " possibilities)");
-
+//	console.log(list);
 	var mask = [];
-	for (x = 0; x < 256; x++)
-	{
-		mask[x] = [];
-		for (y = 0; y < 256; y++)
-			mask[x][y] = 1;
-	}
-	for (k = 0; k < list.length - 1; k += 2)
-		mask[list[k]][list[k + 1]] = 0;
+	for (var i = 0; i < 65536; i++)
+		mask[i] = 1;
+	for (var i = 0; i < list.length; i += 2)
+		mask[parseInt(list[i]) + parseInt(list[i + 1]) * 256] = 0;
 
 	var canvas = document.createElement("canvas");
 	canvas.width  = 256;
 	canvas.height = 256;
 	var ctx = canvas.getContext("2d");
 	ctx.fillStyle = "white";
-	scene2.remove(gt);
-	scene2.remove(arrowHelper);
 
 	var rend = new THREE.WebGLRenderer({
 		preserveDrawingBuffer: true,
@@ -761,65 +768,76 @@ function setShadowFromSimilarity(list)
 		alpha: true
 	});
 	rend.setClearColor(new THREE.Color('white'), 0);
-	rend.setSize(256, 256);
+	var w = renderer.domElement.clientWidth;
+	var h = renderer.domElement.clientHeight;
+	rend.setSize(w, h);
 	rend.shadowMap.enabled = true;
 
 	var grid = 0;
-	while (Math.pow(++grid, 2) + 1 < res.length);
-	var mult = 1080.0 / (grid * 256);
+	var size = 4096;
+	while (Math.pow(++grid, 2) + 1 < v3.length);
+	var mult = size / (grid * 256);
 	var canvas2 = document.createElement("canvas");
-	var sqr = Math.floor(256 * mult);
-	canvas2.width  = 1080;
-	canvas2.height = 1080;
-	var ctx2 = canvas.getContext("2d");
-	ctx2.fillStyle = "white";
-	ctx2.fillRect(0, 0, 1080, 1080);
+	var sqr = Math.floor(size / grid);
+	canvas2.width  = size;
+	canvas2.height = size;
+	var ctx2 = canvas2.getContext("2d");
+	ctx2.fillStyle = "black";
+	ctx2.fillRect(0, 0, size, size);
+	var padw = (w > h) ? Math.floor((w - h) / 2.0) : 0;
+	var padh = (h > w) ? Math.floor((h - w) / 2.0) : 0;
 
-	var w = renderer.domElement.clientWidth;
-	var h = renderer.domElement.clientHeight;
-	var maxwh = Math.max(w, h) - 1;
-	var minwh = Math.min(w, h) - 1;
-	maxwh = 1365;
-	minwh =  969;
-	var padwh = (maxwh - minwh) / 2.0;
-	console.log(minwh, maxwh, padwh);
-	for (k = 0; k < res.length; k++)
+	light.visible = true;
+	light.target = emptyObj;
+
+	var mi = 0, mv = 65536;
+	var mpre = 0, mrec = 0, mf = 0;
+	var kpre = 0, krec = 0, kf = 0;
+
+	for (k = 0; k < v3.length; k++)
 	{
-		light.position.set(res[k][6].x, res[k][6].y, res[k][6].z);
-		emptyObj.position.set(res[k][7].x, res[k][7].y, res[k][7].z);
-		light.target = emptyObj;
+		var p1 = v3[k][1].clone();
+		var p2 = v3[k][2].clone();
+		console.log("/ ".concat(v3.length));
+		light.position.set(p2.x, p2.y, p2.z);
+		emptyObj.position.set(p1.x, p1.y, p1.z);
 		rend.render(mainScene2, camera);
 		ctx.fillRect(0, 0, 256, 256);
-//		ctx.drawImage(renderer.domElement, 0, 0, 256, 256);
-		ctx.drawImage(rend.domElement, padwh, 0, minwh, minwh, 0, 0, 256, 256);
-		ctx2.drawImage(rend.domElement, padwh, 0, minwh, minwh, Math.floor(k / grid) * sqr, (k % grid) * sqr, sqr, sqr);
+		ctx.drawImage(rend.domElement, padw, padh, w - padw, h - padh, 0, 0, 256, 256);
+//		ctx2.drawImage(rend.domElement, padw, padh, w - padw, h - padh, (k % grid) * sqr, Math.floor(k / grid) * sqr, sqr, sqr);
 		var c00 = 0;
 		var c01 = 0;
 		var c10 = 0;
 		var c11 = 0;
-		for (x = 0; x < 256; x++)
+		var d   = ctx.getImageData(0, 0, 256, 256).data;
+//		var str = "";
+		for (var i = 0; i < 65536; i++)
 		{
-			for (y = 0; y < 256; y++)
-			{
-				var d = ctx.getImageData(x, y, 1, 1).data;
-				var c = (d[0] > 200 && d[1] > 200 && d[2] > 200) ? 1 : 0;
-				if (c == 0 && mask[x][y] == 0)
-					c00++;
-				else if (c == 0 && mask[x][y] == 1)
-					c01++;
-				else if (c == 1 && mask[x][y] == 0)
-					c10++;
-				else
-					c11++;
-			}
+//			console.log(d[i * 4]);
+			var c = (d[i * 4] > 240) ? 1 : 0;
+//			if (i % 256 == 0 && i > 0)
+//				str += "\n";
+//			str += (mask[i] == 0) ? " " : ".";
+			if (c == 0 && mask[i] == 0)
+				c00++;
+			else if (c == 0 && mask[i] == 1)
+				c01++;
+			else if (c == 1 && mask[i] == 0)
+				c10++;
+			else
+				c11++;
 		}
+//		console.log(str);
+//		if (c00 == 0)
+//			continue;
 		// https://machinelearningmastery.com/precision-recall-and-f-measure-for-imbalanced-classification/#:~:text=Precision%20quantifies%20the%20number%20of,and%20recall%20in%20one%20number
 		var uni = c00 + c01 + c10;
 		var ins = c00;
-		var pre = c00 > 0 ? parseFloat(c00) / parseFloat(c00 + c01) : 0;
-		var rec = c00 > 0 ? parseFloat(c00) / parseFloat(c00 + c10) : 0;
-		var fme = pre + rec > 0 ? parseFloat(2 * pre * rec) / parseFloat(pre + rec) : 0;
+		var pre = parseFloat(c00)           / parseFloat(c00 + c01);
+		var rec = parseFloat(c00)           / parseFloat(c00 + c10);
+		var fme = parseFloat(2 * pre * rec) / parseFloat(pre + rec);
 		var val = Math.abs(uni - ins);
+//		console.log(c00, c01, c10, c11, uni, ins, 65536 - val, (1 - (parseFloat(val) / 65536)).toFixed(2), pre.toFixed(2), rec.toFixed(2), fme.toFixed(2));
 		if (val < mv)
 		{
 			mv = val;
@@ -840,41 +858,76 @@ function setShadowFromSimilarity(list)
 			mf = fme;
 			kf = k;
 		}
-		console.log(parseFloat(val) / 65536.0, fme, uni, ins, pre, rec, c00, c01, c10, c11);
+		//console.log(parseFloat(val) / 65536.0, fme, uni, ins, pre, rec, c00, c01, c10, c11);
 	}
-
-	light.position.set(res[mi][6].x, res[mi][6].y, res[mi][6].z);
-	emptyObj.position.set(res[mi][7].x, res[mi][7].y, res[mi][7].z);
-	light.target = emptyObj;
-	rend.render(mainScene2, camera);
-	ctx.fillRect(0, 0, 256, 256);
-	ctx.drawImage(rend.domElement, 420, 0, 1080, 1080, 0, 0, 256, 256);
+/*
 	var link = document.getElementById('exportLink');
 	link.setAttribute('download', 'test.png');
 	link.setAttribute('href', canvas2.toDataURL("image/png").replace("image/png", "image/octet-stream"));
 	link.click();
+*/
+//	console.log(1 - parseFloat(mv) / 65536, mf);
 
-	light.position.set(res[mi][6].x, res[mi][6].y, res[mi][6].z);
-	lightFm.position.set(res[kf][6].x, res[kf][6].y, res[kf][6].z);
-	emptyObj.position.set(res[mi][7].x, res[mi][7].y, res[mi][7].z);
-	emptyObjFm.position.set(res[kf][7].x, res[kf][7].y, res[kf][7].z);
-	light.target = emptyObj;
-	lightFm.target = emptyObjFm;
-	//arrowHelper = new THREE.ArrowHelper((res[mi][9].clone()).normalize().multiplyScalar(-1), res[mi][7], 20, 0xff0000);
-	//gt = new THREE.ArrowHelper((mag.clone()).multiplyScalar(-1), (res[mi][8].clone()).add((mag.clone()).multiplyScalar(res[mi][9].length())), 20, 0xffff00);
-	arrowHelper = new THREE.ArrowHelper((res[0][9].clone()).normalize().multiplyScalar(-1), res[0][7], 20, 0xff0000);
-	gt = new THREE.ArrowHelper((mag.clone()).multiplyScalar(-1), res[0][7], 20, 0xffff00);
-	scene2.add(arrowHelper);
-	scene2.add(gt);
-	mv = parseFloat(mv) / 65536.0;
-	uival = "Uniao - intersecao: " + mv.toFixed(3);
-	fmval = "F-measure: " + mf.toFixed(3);
-	document.getElementById("text").innerHTML = uival;
+	k = mi;
+
+	light.position.set(v3[k][2].x, v3[k][2].y, v3[k][2].z);
+	emptyObj.position.set(v3[k][1].x, v3[k][1].y, v3[k][1].z);
+
+	var pObj = new THREE.Mesh(new THREE.SphereGeometry(0.1), new THREE.MeshBasicMaterial({ color: 0xff0000 }));
+	var pLgt = new THREE.Mesh(new THREE.SphereGeometry(0.1), new THREE.MeshBasicMaterial({ color: 0xff0000 }));
+	var pFlr = new THREE.Mesh(new THREE.SphereGeometry(0.1), new THREE.MeshBasicMaterial({ color: 0xff0000 }));
+	pObj.position.set(v3[k][0].x, v3[k][0].y, v3[k][0].z);
+	pLgt.position.set(v3[k][2].x, v3[k][2].y, v3[k][2].z);
+	pFlr.position.set(v3[k][1].x, v3[k][1].y, v3[k][1].z);
+	scene2.add(pObj);
+	scene2.add(pLgt);
+	scene2.add(pFlr);
+	var geo = new THREE.Geometry();
+	geo.vertices.push(v3[k][2].clone());
+	geo.vertices.push(v3[k][1].clone());
+	scene2.add(new THREE.Line(geo, new THREE.LineBasicMaterial({ color: 0xffff00 })));
+	vObj.material.opacity = 0.75;
+	vObj.material.transparent = true;
 	done = true;
-//	console.log("Uniao - intersecao: " + mv.toFixed(2)   + "; indice: " + mi   + "; desvio do ground truth: " + res[mi][3]   + "; vetor: (" + res[mi][9].x.toFixed(2)   + ", " + res[mi][9].y.toFixed(2)   + ", " + res[mi][9].z.toFixed(2)   + ")");
-//	console.log("Precisao: "           + mpre.toFixed(2) + "; indice: " + kpre + "; desvio do ground truth: " + res[kpre][3] + "; vetor: (" + res[kpre][9].x.toFixed(2) + ", " + res[kpre][9].y.toFixed(2) + ", " + res[kpre][9].z.toFixed(2) + ")");
-//	console.log("Recall: "             + mrec.toFixed(2) + "; indice: " + krec + "; desvio do ground truth: " + res[krec][3] + "; vetor: (" + res[krec][9].x.toFixed(2) + ", " + res[krec][9].y.toFixed(2) + ", " + res[krec][9].z.toFixed(2) + ")");
-//	console.log("F-measure: "          + mf.toFixed(2)   + "; indice: " + kf   + "; desvio do ground truth: " + res[kf][3]   + "; vetor: (" + res[kf][9].x.toFixed(2)   + ", " + res[kf][9].y.toFixed(2)   + ", " + res[kf][9].z.toFixed(2)   + ")");
+
+	if (debug)
+		for (var i = 0; i < vDebug.length; i++)
+			scene2.add(vDebug[i]);
+}
+
+
+function shrinkList(list, t)
+{
+	// metodo 01: remover cenas com diferenca angular pro elemento seguinte da lista menor que um certo threshold
+	/*
+	var t = 0.087; // ~5 graus em rad
+	for (var i = 0; i < list.length - 1; i++)
+		for (var j = i + 1; j < list.length; j++)
+			if (list[i][9].angleTo(list[j][9]) < t)
+				list.splice(j--, 1);
+	return list;
+	*/
+
+	// metodo 02: pegar t elementos espacados uniformemente na lista ordenada
+	/*
+	var t = 360;
+	var n = list.length;
+	if (n <= t)
+		return list;
+	var step = n / t;
+	console.log(n, step);
+	var list2 = [];
+	for (var i = 0; i < n - step; i += step)
+		list2.push(list[Math.floor(i)]);
+	return list2;
+	*/
+
+	// metodo 03: remover todos da lista ordenada com diferenca angular menor que um certo threshold
+	var t = 5;
+	for (var i = 0; i < list.length; i++)
+		if (list[i][11] < i * t - 180)
+			list.splice(i--, 1);
+	return list;
 }
 
 
@@ -901,154 +954,74 @@ function teste()
 }
 
 
+function findShadow(debug = false)
+{
+//	var inpt = prompt("Ponto 2D:");
+	var inpt = contours[fc];
+	if (inpt != "")
+	{
+		var list = inpt.split(" ");
+/*
+		vObj.visible         = false;
+		vObjMask.visible     = false;
+		floor.visible        = false;
+		wObj.visible         = true;
+		wPlane.visible       = true;
+		hlObj.visible        = false;
+		hlPoint.visible      = false;
+		arrowHelper.visible  = false;
+		gt.visible           = false;
+*/
+		vObj.visible         = false;
+		vObjMask.visible     = false;
+		floor.visible        = false;
+		wObj.visible         = true;
+		wPlane.visible       = true;
+
+		setShadowFromGroundTruth(list, debug);
+//		setShadowFromSimilarity(list);
+		console.log("done!");
+
+		hlObj.visible        = false;
+		hlPoint.visible      = false;
+		arrowHelper.visible  = false;
+		gt.visible           = false;
+
+		vObj.visible         = true;
+		vObjMask.visible     = true;
+		floor.visible        = true;
+		wObj.visible         = false;
+		wPlane.visible       = false;
+	}
+}
+
+
 function onDocumentMouseDown(event)
 {
+	if (done)
+		return;
+
 	// the following line would stop any other event handler from firing (such as the mouse's TrackballControls)
-	// event.preventDefault();
+	event.preventDefault();
 
 	switch (event.button)
 	{
 		case 0: // left
-			if (!done)
-			{
-				vObj.visible         = !vObj.visible;
-				vObjMask.visible     =  vObj.visible;
-				floor.visible        =  vObj.visible;
-				wObj.visible         = !vObj.visible;
-				dPlane.visible       = !vObj.visible;
-			}
-			else
-			{
-				light.visible   = !light.visible;
-				lightFm.visible = !light.visible;
-				document.getElementById("text").innerHTML = (light.visible ? uival : fmval);
-			}
-
-			//console.log(event.clientX, event.clientY);
-			/*
-			mouse.x =  ((event.clientX - renderer.domElement.offsetLeft) / renderer.domElement.clientWidth)  * 2 - 1;
-			mouse.y = -((event.clientY - renderer.domElement.offsetTop)  / renderer.domElement.clientHeight) * 2 + 1;
-			ray.setFromCamera(mouse, camera);
-			switch (phase)
-			{
-				case 0:
-					var i = ray.intersectObject(shadowPlane);
-					if (i.length > 0)
-					{
-						var p = i[0].point;
-						gtObj1.position.set((i[0].uv.x - 0.5) * planeSize, shadowPlane.position.y, (0.5 - i[0].uv.y) * planeSize);
-						scene2.add(gtObj1);
-						phase++;
-					}
-					break;
-
-				case 1:
-					var i = ray.intersectObject(shadowPlane);
-					if (i.length > 0)
-					{
-						var p = i[0].point;
-						gtObj2.position.set((i[0].uv.x - 0.5) * planeSize, shadowPlane.position.y, (0.5 - i[0].uv.y) * planeSize);
-						gtPlane.position.set((i[0].uv.x - 0.5) * planeSize, shadowPlane.position.y, (0.5 - i[0].uv.y) * planeSize);
-						gtPlane.lookAt(camera.position);
-						scene2.add(gtObj2);
-						scene2.add(gtPlane);
-						var geo = new THREE.Geometry();
-						geo.vertices.push(gtObj1.position.clone());
-						geo.vertices.push(gtObj2.position.clone());
-						gtLine1 = new THREE.Line(geo, new THREE.LineBasicMaterial({ color: 0x00ff00 }));
-						scene2.add(gtLine1);
-						phase++;
-					}
-					break;
-
-				case 2:
-					var i = ray.intersectObject(gtPlane);
-					if (i.length > 0)
-					{
-						gtObj3.position.set(gtObj2.position.x, (i[0].uv.y - 0.5) * planeSize, gtObj2.position.z);
-						console.log(gtObj3.position.x, gtObj3.position.y, gtObj3.position.z);
-						scene2.add(gtObj3);
-						scene2.remove(gtPlane);
-						var geo1 = new THREE.Geometry();
-						geo1.vertices.push(gtObj2.position.clone());
-						geo1.vertices.push(gtObj3.position.clone());
-						gtLine2 = new THREE.Line(geo1, new THREE.LineBasicMaterial({ color: 0x00ff00 }));
-						var geo2 = new THREE.Geometry();
-						geo2.vertices.push(gtObj3.position.clone());
-						geo2.vertices.push(gtObj1.position.clone());
-						gtLine3 = new THREE.Line(geo2, new THREE.LineBasicMaterial({ color: 0x00ff00 }));
-						scene2.add(gtLine2);
-						scene2.add(gtLine3);
-						phase++;
-					}
-					break;
-
-				default:
-					scene2.remove(gtObj1);
-					scene2.remove(gtObj2);
-					scene2.remove(gtObj3);
-					scene2.remove(gtLine1);
-					scene2.remove(gtLine2);
-					scene2.remove(gtLine3);
-					phase = 0;
-			}*/
+			if (++fc >= files.length)
+				fc = 0;
+			console.log(fc, files[fc]);
+			arToolkitSource = new THREEx.ArToolkitSource({ sourceType: 'image', sourceUrl: 'my-images/current/' + files[fc] });
+			arToolkitSource.init(function onReady(){ onResize() });
+			light.visible = false;
+			update();
 			break;
 
 		case 1: // middle
-			if (!done)
-			{
-				var inpt = prompt("Ponto 2D:");
-				if (inpt != "")
-				{
-					var all = inpt.split("\n");
-					for (var i = 0; i < all.length; i += 100)
-					{
-	//					console.log("000" + (i + 1));
-	//					setScene(i + 1);
-	/*
-						vObj.visible         = false;
-						vObjMask.visible     = false;
-						floor.visible        = false;
-						wObj.visible         = true;
-						wPlane.visible       = true;
-						hlObj.visible        = false;
-						hlPoint.visible      = false;
-						arrowHelper.visible  = false;
-						gt.visible           = false;
-	*/
-						vObj.visible         = false;
-						vObjMask.visible     = false;
-						floor.visible        = false;
-						wObj.visible         = true;
-						wPlane.visible       = true;
-
-						setShadowFromSimilarity(all[i].split(" "));
-						console.log("done!");
-
-						hlObj.visible        = false;
-						hlPoint.visible      = false;
-						arrowHelper.visible  = false;
-						gt.visible           = false;
-
-						vObj.visible         = true;
-						vObjMask.visible     = true;
-						floor.visible        = true;
-						wObj.visible         = false;
-						wPlane.visible       = false;
-					}
-				}/*
-				else
-				{
-					if (++fc >= files.length)
-						fc = 0;
-					arToolkitSource = new THREEx.ArToolkitSource({ sourceType: 'image', sourceUrl: 'my-images/current/' + files[fc]});
-					update();
-				}*/
-			}
+			findShadow(true);
 			break;
 
 		case 2: // right
-			//teste();
+			findShadow();
 			break;
 	}
 }
@@ -1061,6 +1034,54 @@ function onDocumentMouseWheel(event)
 		shadowPlane.material.opacity = Math.max(0, opa - 0.05);
 	else if (event.deltaY < 0)
 		shadowPlane.material.opacity = Math.min(1, opa + 0.05);
+}
+
+
+function onDocumentKeyDown(event)
+{
+	switch (event.which)
+	{
+		case 32: // Espaco
+			setShadowFromGroundTruth(contours[fc].split(" "), true);
+			break;
+
+		case 90: // Z
+			if (--fc < 0)
+				fc = files.length - 1;
+			console.log(fc, files[fc]);
+			arToolkitSource = new THREEx.ArToolkitSource({ sourceType: 'image', sourceUrl: 'my-images/current/' + files[fc] });
+			arToolkitSource.init(function onReady(){ onResize() });
+			light.visible = false;
+			update();
+			break;
+
+		case 88: // X
+			findShadow();
+			break;
+
+		case 67: // C
+			if (++fc >= files.length)
+				fc = 0;
+			console.log(fc, files[fc]);
+			arToolkitSource = new THREEx.ArToolkitSource({ sourceType: 'image', sourceUrl: 'my-images/current/' + files[fc] });
+			arToolkitSource.init(function onReady(){ onResize() });
+			light.visible = false;
+			update();
+			break;
+
+		default:
+			console.log(event.which);
+	}
+}
+
+
+function angleBetween(va, vb)
+{
+	return va.angleTo(vb);
+	if (va.angleTo(vb) == 0)
+		return 0;
+	return (va.x * vb.x + va.y * vb.y + va.z * vb.z) / (va.length() * vb.length());
+//	angle = Math.acos((dot) / (Math.sqrt(va.x * va.x + va.y * va.y + va.z * va.z) * Math.sqrt(vb.x * va.x + vb.y * va.y + vb.z * va.z)))
 }
 
 
