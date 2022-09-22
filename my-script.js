@@ -661,13 +661,15 @@ function setShadowFromGroundTruth(list, debug = false)
 		v1[i].x += vObj.position.x;
 		v1[i].y += vObj.position.y;
 		v1[i].z += vObj.position.z;
-//		if (v1[i].y < 0.5)
-//			v1.splice(i--, 1);
+
+		// elimina os pontos abaixo de 25% da altura do objeto virtual
+		if (v1[i].y < vObjHeight / 4)
+			v1.splice(i--, 1);
+
 		if (debug)
 		{
 			var newObj = new THREE.Mesh(new THREE.SphereGeometry(0.05), new THREE.MeshBasicMaterial({ color: 0x0000ff }));
 			newObj.position.set(v1[i].x, v1[i].y, v1[i].z);
-//			newObj.renderOrder = globalRenderOrder++;
 			vDebug.push(newObj.clone());
 		}
 	}
@@ -709,7 +711,6 @@ function setShadowFromGroundTruth(list, debug = false)
 		{
 			var newObj = new THREE.Mesh(new THREE.SphereGeometry(0.05), new THREE.MeshBasicMaterial({ color: 0x00ff00 }));
 			newObj.position.set(v2[i].x, v2[i].y, v2[i].z);
-//			newObj.renderOrder = globalRenderOrder++;
 			vDebug.push(newObj.clone());
 		}
 	}
@@ -790,7 +791,7 @@ function setShadowFromGroundTruth(list, debug = false)
 	light.visible = true;
 	light.target = emptyObj;
 
-	var mi = 0, mv = 65536;
+	var mi = 0, mv = 0;
 	var mpre = 0, mrec = 0, mf = 0;
 	var kpre = 0, krec = 0, kf = 0;
 
@@ -828,17 +829,17 @@ function setShadowFromGroundTruth(list, debug = false)
 				c11++;
 		}
 //		console.log(str);
-//		if (c00 == 0)
-//			continue;
+		if (c00 == 0)
+			continue;
 		// https://machinelearningmastery.com/precision-recall-and-f-measure-for-imbalanced-classification/#:~:text=Precision%20quantifies%20the%20number%20of,and%20recall%20in%20one%20number
 		var uni = c00 + c01 + c10;
 		var ins = c00;
 		var pre = parseFloat(c00)           / parseFloat(c00 + c01);
 		var rec = parseFloat(c00)           / parseFloat(c00 + c10);
 		var fme = parseFloat(2 * pre * rec) / parseFloat(pre + rec);
-		var val = Math.abs(uni - ins);
+		var val = 2 * c00 - (c01 + c10);
 //		console.log(c00, c01, c10, c11, uni, ins, 65536 - val, (1 - (parseFloat(val) / 65536)).toFixed(2), pre.toFixed(2), rec.toFixed(2), fme.toFixed(2));
-		if (val < mv)
+		if (val > mv)
 		{
 			mv = val;
 			mi = k;
@@ -891,8 +892,18 @@ function setShadowFromGroundTruth(list, debug = false)
 	done = true;
 
 	if (debug)
+	{
 		for (var i = 0; i < vDebug.length; i++)
 			scene2.add(vDebug[i]);
+		var str = "";
+		for (var i = 0; i < 65536; i++)
+		{
+			if (i % 256 == 0 && i > 0)
+				str += "\n";
+			str += (mask[i] == 0) ? " " : ".";
+		}
+		console.log(str);
+	}
 }
 
 
