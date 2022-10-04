@@ -651,11 +651,23 @@ function setShadowFromGroundTruth(list, debug = false)
 	var vDebug = [];
 
 	// adquire conjunto de pontos a partir dos vertices do objeto virtual
-	var k = 0;
+/*
 	var position = vObj.geometry.attributes.position;
 	for (var i = 0; i < position.count; i++)
 		v1.push(new THREE.Vector3().fromBufferAttribute(position, i));
 	getMidPoints(v1, 0.001, 1);
+*/
+	// adquire conjunto de pontos a partir dos triangulos da geometria
+	var pos = vObj.geometry.toNonIndexed().attributes.position;
+	for (var i = 0; i < pos.count; i += 3)
+	{
+		var t1  = new THREE.Vector3().fromBufferAttribute(pos, i);
+		var t2  = new THREE.Vector3().fromBufferAttribute(pos, i + 1);
+		var t3  = new THREE.Vector3().fromBufferAttribute(pos, i + 2);
+		v1.push(new THREE.Vector3((t1.x + t2.x + t3.x) / 3, (t1.y + t2.y + t3.y) / 3, (t1.z + t2.z + t3.z) / 3));
+	}
+
+	// passa os pontos adquiridos para valores globais
 	for (var i = 0; i < v1.length; i++)
 	{
 		v1[i].x += vObj.position.x;
@@ -663,8 +675,8 @@ function setShadowFromGroundTruth(list, debug = false)
 		v1[i].z += vObj.position.z;
 
 		// elimina os pontos abaixo de 25% da altura do objeto virtual
-		if (v1[i].y < vObjHeight / 4)
-			v1.splice(i--, 1);
+//		if (v1[i].y < vObjHeight / 4)
+//			v1.splice(i--, 1);
 
 		if (debug)
 		{
@@ -677,7 +689,7 @@ function setShadowFromGroundTruth(list, debug = false)
 	console.log("get floor points");
 
 	// adquire conjunto de pontos a partir dos pontos 2d da sombra
-	k = 0;
+	var k = 0;
 	while (k < list.length)
 	{
 		var w    = renderer.domElement.clientWidth;
@@ -700,6 +712,7 @@ function setShadowFromGroundTruth(list, debug = false)
 
 	// reduz o tamanho da segunda lista
 	var t = 0.2;
+	if (debug)
 	for (var i = 0; i < v2.length - 1; i++)
 		for (var j = i + 1; j < v2.length; j++)
 			if (v2[i].distanceTo(v2[j]) < t)
@@ -724,7 +737,7 @@ function setShadowFromGroundTruth(list, debug = false)
 		for (var j = 0; j < v2.length; j++)
 		{
 			var aux = v1[i].clone().sub(v2[j].clone());
-			var v   = aux.clone().normalize().multiplyScalar(1).add(v1[i].clone());
+			var v   = aux.clone().normalize().multiplyScalar(2 * vObjHeight).add(v1[i].clone()); // quanto maior o escalar, mais longe fica a fonte de luz
 			v4.push([v1[i], v2[j], v, aux, Math.atan2(aux.z, aux.x) * 180 / Math.PI + 180]);
 		}
 	}
@@ -837,7 +850,8 @@ function setShadowFromGroundTruth(list, debug = false)
 		var pre = parseFloat(c00)           / parseFloat(c00 + c01);
 		var rec = parseFloat(c00)           / parseFloat(c00 + c10);
 		var fme = parseFloat(2 * pre * rec) / parseFloat(pre + rec);
-		var val = 2 * c00 - (c01 + c10);
+//		var val = 1 * c00 - (c01 + c10);
+		var val = 65536 - (c01 + c10);
 //		console.log(c00, c01, c10, c11, uni, ins, 65536 - val, (1 - (parseFloat(val) / 65536)).toFixed(2), pre.toFixed(2), rec.toFixed(2), fme.toFixed(2));
 		if (val > mv)
 		{
@@ -874,25 +888,23 @@ function setShadowFromGroundTruth(list, debug = false)
 	light.position.set(v3[k][2].x, v3[k][2].y, v3[k][2].z);
 	emptyObj.position.set(v3[k][1].x, v3[k][1].y, v3[k][1].z);
 
-	var pObj = new THREE.Mesh(new THREE.SphereGeometry(0.1), new THREE.MeshBasicMaterial({ color: 0xff0000 }));
-	var pLgt = new THREE.Mesh(new THREE.SphereGeometry(0.1), new THREE.MeshBasicMaterial({ color: 0xff0000 }));
-	var pFlr = new THREE.Mesh(new THREE.SphereGeometry(0.1), new THREE.MeshBasicMaterial({ color: 0xff0000 }));
-	pObj.position.set(v3[k][0].x, v3[k][0].y, v3[k][0].z);
-	pLgt.position.set(v3[k][2].x, v3[k][2].y, v3[k][2].z);
-	pFlr.position.set(v3[k][1].x, v3[k][1].y, v3[k][1].z);
-	scene2.add(pObj);
-	scene2.add(pLgt);
-	scene2.add(pFlr);
-	var geo = new THREE.Geometry();
-	geo.vertices.push(v3[k][2].clone());
-	geo.vertices.push(v3[k][1].clone());
-	scene2.add(new THREE.Line(geo, new THREE.LineBasicMaterial({ color: 0xffff00 })));
-	vObj.material.opacity = 0.75;
-	vObj.material.transparent = true;
-	done = true;
-
 	if (debug)
 	{
+		var pObj = new THREE.Mesh(new THREE.SphereGeometry(0.1), new THREE.MeshBasicMaterial({ color: 0xff0000 }));
+		var pLgt = new THREE.Mesh(new THREE.SphereGeometry(0.1), new THREE.MeshBasicMaterial({ color: 0xff0000 }));
+		var pFlr = new THREE.Mesh(new THREE.SphereGeometry(0.1), new THREE.MeshBasicMaterial({ color: 0xff0000 }));
+		pObj.position.set(v3[k][0].x, v3[k][0].y, v3[k][0].z);
+		pLgt.position.set(v3[k][2].x, v3[k][2].y, v3[k][2].z);
+		pFlr.position.set(v3[k][1].x, v3[k][1].y, v3[k][1].z);
+		scene2.add(pObj);
+		scene2.add(pLgt);
+		scene2.add(pFlr);
+		var geo = new THREE.Geometry();
+		geo.vertices.push(v3[k][2].clone());
+		geo.vertices.push(v3[k][1].clone());
+		scene2.add(new THREE.Line(geo, new THREE.LineBasicMaterial({ color: 0xffff00 })));
+		vObj.material.opacity = 0.75;
+		vObj.material.transparent = true;
 		for (var i = 0; i < vDebug.length; i++)
 			scene2.add(vDebug[i]);
 		var str = "";
@@ -904,6 +916,8 @@ function setShadowFromGroundTruth(list, debug = false)
 		}
 		console.log(str);
 	}
+
+	done = true;
 }
 
 
