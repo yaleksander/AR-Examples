@@ -651,12 +651,12 @@ function setShadowFromGroundTruth(list, debug = false)
 	var vDebug = [];
 
 	// adquire conjunto de pontos a partir dos vertices do objeto virtual
-/*
+
 	var position = vObj.geometry.attributes.position;
 	for (var i = 0; i < position.count; i++)
 		v1.push(new THREE.Vector3().fromBufferAttribute(position, i));
 	getMidPoints(v1, 0.001, 1);
-*/
+
 	// adquire conjunto de pontos a partir dos triangulos da geometria
 	var pos = vObj.geometry.toNonIndexed().attributes.position;
 	for (var i = 0; i < pos.count; i += 3)
