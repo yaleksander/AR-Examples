@@ -815,7 +815,7 @@ function setShadowFromGroundTruth(list, debug = false)
 		rend.render(mainScene2, camera);
 		ctx.fillRect(0, 0, 256, 256);
 		ctx.drawImage(rend.domElement, padw, padh, w - padw * 2, h - padh * 2, 0, 0, 256, 256);
-//		ctx2.drawImage(rend.domElement, padw, padh, w - padw, h - padh, (k % grid) * sqr, Math.floor(k / grid) * sqr, sqr, sqr);
+		//ctx2.drawImage(rend.domElement, padw, padh, w - padw * 2, h - padh * 2, (k % grid) * sqr, Math.floor(k / grid) * sqr, sqr, sqr); // desenha os candidatos
 		var c00 = 0;
 		var c01 = 0;
 		var c10 = 0;
@@ -905,6 +905,7 @@ function setShadowFromGroundTruth(list, debug = false)
 		//console.log(parseFloat(val) / 65536.0, fme, uni, ins, pre, rec, c00, c01, c10, c11);
 	}
 
+	// imprime os candidatos
 	var link = document.getElementById('exportLink');
 	link.setAttribute('download', 'test.png');
 	link.setAttribute('href', canvas2.toDataURL("image/png").replace("image/png", "image/octet-stream"));
@@ -943,7 +944,7 @@ function setShadowFromGroundTruth(list, debug = false)
 				str += "\n";
 			str += (mask[i] == 0) ? " " : ".";
 		}
-		console.log(str);
+		//console.log(str);
 	}
 	console.log(v3[k][4]);
 	done = true;
