@@ -712,7 +712,7 @@ function setShadowFromGroundTruth(list, debug = false)
 
 	// reduz o tamanho da segunda lista
 	var t = 0.2;
-	//if (debug)
+	if (debug)
 	for (var i = 0; i < v2.length - 1; i++)
 		for (var j = i + 1; j < v2.length; j++)
 			if (v2[i].distanceTo(v2[j]) < t)
@@ -887,7 +887,7 @@ function setShadowFromGroundTruth(list, debug = false)
 	light.position.set(v3[k][2].x, v3[k][2].y, v3[k][2].z);
 	emptyObj.position.set(v3[k][1].x, v3[k][1].y, v3[k][1].z);
 
-	if (debug || true)
+	if (debug)
 	{
 		var pObj = new THREE.Mesh(new THREE.SphereGeometry(0.1), new THREE.MeshBasicMaterial({ color: 0xff0000 }));
 		var pLgt = new THREE.Mesh(new THREE.SphereGeometry(0.1), new THREE.MeshBasicMaterial({ color: 0xff0000 }));
@@ -913,8 +913,9 @@ function setShadowFromGroundTruth(list, debug = false)
 				str += "\n";
 			str += (mask[i] == 0) ? " " : ".";
 		}
-		console.log(str);
+		//console.log(str);
 	}
+	console.log(v3[k][4]);
 
 	done = true;
 }
