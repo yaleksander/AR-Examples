@@ -688,15 +688,16 @@ function setShadowFromGroundTruth(list, debug = false)
 
 	console.log("get floor points");
 
+	var w    = renderer.domElement.clientWidth;
+	var h    = renderer.domElement.clientHeight;
+	var padw = (w > h) ? Math.floor((w - h) / 2.0) : 0;
+	var padh = (h > w) ? Math.floor((h - w) / 2.0) : 0;
+	var m    = ((w > h) ? h : w) / 256.0;
+
 	// adquire conjunto de pontos a partir dos pontos 2d da sombra
 	var k = 0;
 	while (k < list.length)
 	{
-		var w    = renderer.domElement.clientWidth;
-		var h    = renderer.domElement.clientHeight;
-		var padw = (w > h) ? Math.floor((w - h) / 2.0) : 0;
-		var padh = (h > w) ? Math.floor((h - w) / 2.0) : 0;
-		var m    = ((w > h) ? h : w) / 256.0;
 		x        = parseInt(list[k++]) * m + padw;
 		y        = parseInt(list[k++]) * m + padh;
 		mouse.x  =  (x / w) * 2 - 1;
@@ -782,14 +783,12 @@ function setShadowFromGroundTruth(list, debug = false)
 		alpha: true
 	});
 	rend.setClearColor(new THREE.Color('white'), 0);
-	var w = renderer.domElement.clientWidth;
-	var h = renderer.domElement.clientHeight;
 	rend.setSize(w, h);
 	rend.shadowMap.enabled = true;
 
-	var grid = 0;
+	var grid = 16;
 	var size = 4096;
-	while (Math.pow(++grid, 2) + 1 < v3.length);
+	//while (Math.pow(++grid, 2) + 1 < v3.length);
 	var mult = size / (grid * 256);
 	var canvas2 = document.createElement("canvas");
 	var sqr = Math.floor(size / grid);
@@ -798,8 +797,6 @@ function setShadowFromGroundTruth(list, debug = false)
 	var ctx2 = canvas2.getContext("2d");
 	ctx2.fillStyle = "black";
 	ctx2.fillRect(0, 0, size, size);
-	var padw = (w > h) ? Math.floor((w - h) / 2.0) : 0;
-	var padh = (h > w) ? Math.floor((h - w) / 2.0) : 0;
 
 	light.visible = true;
 	light.target = emptyObj;
@@ -817,18 +814,18 @@ function setShadowFromGroundTruth(list, debug = false)
 		emptyObj.position.set(p1.x, p1.y, p1.z);
 		rend.render(mainScene2, camera);
 		ctx.fillRect(0, 0, 256, 256);
-		ctx.drawImage(rend.domElement, padw, padh, w - padw, h - padh, 0, 0, 256, 256);
+		ctx.drawImage(rend.domElement, padw, padh, w - padw * 2, h - padh * 2, 0, 0, 256, 256);
 //		ctx2.drawImage(rend.domElement, padw, padh, w - padw, h - padh, (k % grid) * sqr, Math.floor(k / grid) * sqr, sqr, sqr);
 		var c00 = 0;
 		var c01 = 0;
 		var c10 = 0;
 		var c11 = 0;
-		var d   = ctx.getImageData(0, 0, 256, 256).data;
+		var d   = ctx.getImageData(0, 0, 256, 256);
 //		var str = "";
 		for (var i = 0; i < 65536; i++)
 		{
 //			console.log(d[i * 4]);
-			var c = (d[i * 4] > 240) ? 1 : 0;
+			var c = (d.data[i * 4] > 250) ? 1 : 0;
 //			if (i % 256 == 0 && i > 0)
 //				str += "\n";
 //			str += (mask[i] == 0) ? " " : ".";
@@ -840,7 +837,38 @@ function setShadowFromGroundTruth(list, debug = false)
 				c10++;
 			else
 				c11++;
+
+			// visualizacao extra
+			if (c == 0 && mask[i] == 0)
+			{
+				d.data[i * 4 + 0] = 255;
+				d.data[i * 4 + 1] =   0;
+				d.data[i * 4 + 2] =   0;
+				d.data[i * 4 + 3] = 255;
+			}
+			else if (c == 0 && mask[i] == 1)
+			{
+				d.data[i * 4 + 0] =   0;
+				d.data[i * 4 + 1] = 255;
+				d.data[i * 4 + 2] =   0;
+				d.data[i * 4 + 3] = 255;
+			}
+			else if (c == 1 && mask[i] == 0)
+			{
+				d.data[i * 4 + 0] =   0;
+				d.data[i * 4 + 1] =   0;
+				d.data[i * 4 + 2] = 255;
+				d.data[i * 4 + 3] = 255;
+			}
+			else
+			{
+				d.data[i * 4 + 0] = 255;
+				d.data[i * 4 + 1] = 255;
+				d.data[i * 4 + 2] = 255;
+				d.data[i * 4 + 3] = 255;
+			}
 		}
+		ctx2.putImageData(d, (k % grid) * sqr, Math.floor(k / grid) * sqr, 0, 0, sqr, sqr);
 //		console.log(str);
 		if (c00 == 0)
 			continue;
@@ -851,7 +879,8 @@ function setShadowFromGroundTruth(list, debug = false)
 		var rec = parseFloat(c00)           / parseFloat(c00 + c10);
 		var fme = parseFloat(2 * pre * rec) / parseFloat(pre + rec);
 //		var val = 1 * c00 - (c01 + c10);
-		var val = 65536 - (c01 + c10);
+//		var val = 65536 - (c01 + c10);
+		var val = parseFloat(ins) / uni;
 //		console.log(c00, c01, c10, c11, uni, ins, 65536 - val, (1 - (parseFloat(val) / 65536)).toFixed(2), pre.toFixed(2), rec.toFixed(2), fme.toFixed(2));
 		if (val > mv)
 		{
@@ -875,12 +904,12 @@ function setShadowFromGroundTruth(list, debug = false)
 		}
 		//console.log(parseFloat(val) / 65536.0, fme, uni, ins, pre, rec, c00, c01, c10, c11);
 	}
-/*
+
 	var link = document.getElementById('exportLink');
 	link.setAttribute('download', 'test.png');
 	link.setAttribute('href', canvas2.toDataURL("image/png").replace("image/png", "image/octet-stream"));
 	link.click();
-*/
+
 //	console.log(1 - parseFloat(mv) / 65536, mf);
 
 	k = mi;
@@ -916,7 +945,7 @@ function setShadowFromGroundTruth(list, debug = false)
 		}
 		console.log(str);
 	}
-
+	console.log(v3[k][4]);
 	done = true;
 }
 
