@@ -712,7 +712,7 @@ function setShadowFromGroundTruth(list, debug = false)
 
 	// reduz o tamanho da segunda lista
 	var t = 0.2;
-	if (debug)
+	//if (debug)
 	for (var i = 0; i < v2.length - 1; i++)
 		for (var j = i + 1; j < v2.length; j++)
 			if (v2[i].distanceTo(v2[j]) < t)
@@ -818,7 +818,7 @@ function setShadowFromGroundTruth(list, debug = false)
 		rend.render(mainScene2, camera);
 		ctx.fillRect(0, 0, 256, 256);
 		ctx.drawImage(rend.domElement, padw, padh, w - padw, h - padh, 0, 0, 256, 256);
-//		ctx2.drawImage(rend.domElement, padw, padh, w - padw, h - padh, (k % grid) * sqr, Math.floor(k / grid) * sqr, sqr, sqr);
+		//ctx2.drawImage(rend.domElement, padw, padh, w - padw, h - padh, (k % grid) * sqr, Math.floor(k / grid) * sqr, sqr, sqr); // desenha os candidatos
 		var c00 = 0;
 		var c01 = 0;
 		var c10 = 0;
@@ -876,19 +876,18 @@ function setShadowFromGroundTruth(list, debug = false)
 		//console.log(parseFloat(val) / 65536.0, fme, uni, ins, pre, rec, c00, c01, c10, c11);
 	}
 /*
+	// imprime os candidatos
 	var link = document.getElementById('exportLink');
 	link.setAttribute('download', 'test.png');
 	link.setAttribute('href', canvas2.toDataURL("image/png").replace("image/png", "image/octet-stream"));
 	link.click();
 */
-//	console.log(1 - parseFloat(mv) / 65536, mf);
-
 	k = mi;
 
 	light.position.set(v3[k][2].x, v3[k][2].y, v3[k][2].z);
 	emptyObj.position.set(v3[k][1].x, v3[k][1].y, v3[k][1].z);
 
-	if (debug)
+	if (debug || true)
 	{
 		var pObj = new THREE.Mesh(new THREE.SphereGeometry(0.1), new THREE.MeshBasicMaterial({ color: 0xff0000 }));
 		var pLgt = new THREE.Mesh(new THREE.SphereGeometry(0.1), new THREE.MeshBasicMaterial({ color: 0xff0000 }));
