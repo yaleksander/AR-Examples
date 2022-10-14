@@ -802,8 +802,7 @@ function setShadowFromGroundTruth(list, debug = false)
 	light.target = emptyObj;
 
 	var mi = 0, mv = 0;
-	var mpre = 0, mrec = 0, mf = 0;
-	var kpre = 0, krec = 0, kf = 0;
+	var candidates = [];
 
 	for (k = 0; k < v3.length; k++)
 	{
@@ -875,18 +874,20 @@ function setShadowFromGroundTruth(list, debug = false)
 		// https://machinelearningmastery.com/precision-recall-and-f-measure-for-imbalanced-classification/#:~:text=Precision%20quantifies%20the%20number%20of,and%20recall%20in%20one%20number
 		var uni = c00 + c01 + c10;
 		var ins = c00;
-		var pre = parseFloat(c00)           / parseFloat(c00 + c01);
-		var rec = parseFloat(c00)           / parseFloat(c00 + c10);
-		var fme = parseFloat(2 * pre * rec) / parseFloat(pre + rec);
+//		var pre = parseFloat(c00)           / parseFloat(c00 + c01);
+//		var rec = parseFloat(c00)           / parseFloat(c00 + c10);
+//		var fme = parseFloat(2 * pre * rec) / parseFloat(pre + rec);
 //		var val = 1 * c00 - (c01 + c10);
 //		var val = 65536 - (c01 + c10);
 		var val = parseFloat(ins) / uni;
 //		console.log(c00, c01, c10, c11, uni, ins, 65536 - val, (1 - (parseFloat(val) / 65536)).toFixed(2), pre.toFixed(2), rec.toFixed(2), fme.toFixed(2));
+		candidates.push([ins, uni - ins, val, k]);
 		if (val > mv)
 		{
 			mv = val;
 			mi = k;
 		}
+/*
 		if (pre > mpre)
 		{
 			mpre = pre;
@@ -903,7 +904,21 @@ function setShadowFromGroundTruth(list, debug = false)
 			kf = k;
 		}
 		//console.log(parseFloat(val) / 65536.0, fme, uni, ins, pre, rec, c00, c01, c10, c11);
+*/
 	}
+
+	// ordena a lista para a 2a fase do metodo (experimental)
+	candidates.sort(function(a, b)
+	{
+		return b[0] - a[0];
+	});
+	var start = Math.round(candidates.length * 0.1);
+	var end   = candidates.length - start;
+	candidates.splice(start, end);
+	candidates.sort(function(a, b)
+	{
+		return a[1] - b[1];
+	});
 
 	// imprime os candidatos
 	var link = document.getElementById('exportLink');
@@ -913,7 +928,8 @@ function setShadowFromGroundTruth(list, debug = false)
 
 //	console.log(1 - parseFloat(mv) / 65536, mf);
 
-	k = mi;
+	k = mi; // método 1: união / interseção
+	k = candidates[0][3]; // método 2: ordena por maior interseção, guarda os 10% melhores, reordena por menor diferença entre união e interseção
 
 	light.position.set(v3[k][2].x, v3[k][2].y, v3[k][2].z);
 	emptyObj.position.set(v3[k][1].x, v3[k][1].y, v3[k][1].z);
@@ -946,7 +962,7 @@ function setShadowFromGroundTruth(list, debug = false)
 		}
 		//console.log(str);
 	}
-	console.log(v3[k][4]);
+	console.log(v3[mi][4], v3[candidates[0][3]][4]);
 	done = true;
 }
 
