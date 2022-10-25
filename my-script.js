@@ -920,22 +920,21 @@ function setShadowFromGroundTruth(list, debug = false)
 		return a[1] - b[1];
 	});
 
-	// imprime os candidatos
-	var link = document.getElementById('exportLink');
-	link.setAttribute('download', 'test.png');
-	link.setAttribute('href', canvas2.toDataURL("image/png").replace("image/png", "image/octet-stream"));
-	link.click();
-
-//	console.log(1 - parseFloat(mv) / 65536, mf);
-
 	k = mi; // método 1: união / interseção
-	k = candidates[0][3]; // método 2: ordena por maior interseção, guarda os 10% melhores, reordena por menor diferença entre união e interseção
+	//k = candidates[0][3]; // método 2: ordena por maior interseção, guarda os 10% melhores, reordena por menor diferença entre união e interseção
 
 	light.position.set(v3[k][2].x, v3[k][2].y, v3[k][2].z);
 	emptyObj.position.set(v3[k][1].x, v3[k][1].y, v3[k][1].z);
 
 	if (debug)
 	{
+		// imprime os candidatos
+		var link = document.getElementById('exportLink');
+		link.setAttribute('download', 'test.png');
+		link.setAttribute('href', canvas2.toDataURL("image/png").replace("image/png", "image/octet-stream"));
+		link.click();
+
+		// cria objetos virtuais para facilitar a visualizacao
 		var pObj = new THREE.Mesh(new THREE.SphereGeometry(0.1), new THREE.MeshBasicMaterial({ color: 0xff0000 }));
 		var pLgt = new THREE.Mesh(new THREE.SphereGeometry(0.1), new THREE.MeshBasicMaterial({ color: 0xff0000 }));
 		var pFlr = new THREE.Mesh(new THREE.SphereGeometry(0.1), new THREE.MeshBasicMaterial({ color: 0xff0000 }));

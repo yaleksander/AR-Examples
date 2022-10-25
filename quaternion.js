@@ -1,6 +1,6 @@
 var scene, camera, renderer, clock, deltaTime, totalTime;
 
-var sphere, sphere0, sphere1, sphere2, v0, v1, v2;
+var sphere, sphere0, sphere1, sphere2, v0, v1, v2, camV1, camV2, camR1, camR2, zoom = 1;
 
 initialize();
 animate();
@@ -9,12 +9,16 @@ function initialize()
 {
 	scene = new THREE.Scene();
 	camera = new THREE.PerspectiveCamera( 70, window.innerWidth / window.innerHeight, 0.1, 1000 );
-	camera.position.set(0, 2, 4);
-	camera.lookAt( scene.position );	
-	scene.add( camera );
+
+	camV1 = new THREE.Vector3(0, 2, 4);
+	camR1 = 0;
+	camR2 = 0;
+	camera.position.set(camV1.x, camV1.y, camV1.z);
+	camera.lookAt(scene.position);	
+	scene.add(camera);
 
 	var ambientLight = new THREE.AmbientLight( 0xcccccc, 1.00 );
-	scene.add( ambientLight );
+	scene.add(ambientLight);
 
 	renderer = new THREE.WebGLRenderer({
 		antialias : true,
@@ -54,7 +58,7 @@ function initialize()
 	scene.add(sphere0);
 	scene.add(sphere1);
 	scene.add(sphere2);
-//	scene.add(plane);
+	//scene.add(plane);
 }
 
 function update()
@@ -115,6 +119,86 @@ function onDocumentMouseDown(event)
 			sphere2.position.set(v2.x, v2.y, v2.z);
 		}
 	}
+}
+
+document.addEventListener("mousedown", onDocumentMouseDown,  false);
+function onDocumentMouseDown(event)
+{
+	var ray   = new THREE.Raycaster();
+	var mouse = new THREE.Vector2();
+	var w     = renderer.domElement.clientWidth;
+	var h     = renderer.domElement.clientHeight;
+	mouse.x   =  (event.clientX / w) * 2 - 1;
+	mouse.y   = -(event.clientY / h) * 2 + 1;
+	ray.setFromCamera(mouse, camera);
+	var i = ray.intersectObject(sphere);
+	if (i.length > 0)
+	{
+		if (v0.equals(zero))
+		{
+			v0 = i[0].point.clone().normalize();
+			sphere0.position.set(v0.x, v0.y, v0.z);
+		}
+		else if (v1.equals(zero))
+		{
+			v1 = i[0].point.clone();
+			sphere1.position.set(v1.x, v1.y, v1.z);
+
+			v2 = findBest(v0, Math.PI / 8, 10, true);
+			sphere2.position.set(v2.x, v2.y, v2.z);
+		}
+	}
+}
+
+document.addEventListener("keypress", onDocumentKeyPress,  false);
+function onDocumentKeyPress(event)
+{
+	var step = 0.05;
+	switch (event.key)
+	{
+		case "w":
+			if (camR1 < Math.PI / 3)
+				camR1 += step;
+			break;
+
+		case "a":
+			camR2 -= step;
+			break;
+
+		case "s":
+			if (camR1 > -Math.PI / 3)
+				camR1 -= step;
+			break;
+
+		case "d":
+			camR2 += step;
+			break;
+	}
+	if (camR2 > Math.PI * 2)
+		camR2 -= Math.PI * 2;
+	else if (camR2 < 0)
+		camR2 += Math.PI * 2;
+	updateCameraPosition();
+}
+
+document.addEventListener("wheel", onDocumentWheel,  false);
+function onDocumentWheel(event)
+{
+	var step = 0.05;
+	if (event.deltaY > 0)
+		zoom = Math.min(2, zoom + step);
+	else if (event.deltaY < 0)
+		zoom = Math.max(0.3, zoom - step);
+	updateCameraPosition();
+}
+
+function updateCameraPosition()
+{
+	camV2 = camV1.clone().multiplyScalar(zoom);
+	camera.position.set(camV2.x, camV2.y, camV2.z);
+	camera.position.applyAxisAngle(new THREE.Vector3(1, 0, 0), camR1);
+	camera.position.applyAxisAngle(new THREE.Vector3(0, 1, 0), camR2);
+	camera.lookAt(scene.position);	
 }
 
 function findBest(p0, alpha, maxRec, drawAll)
