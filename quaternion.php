@@ -16,6 +16,9 @@
 	<script src="threex/threex-armarkercontrols.js"></script>
 </head>
 <body>
+	<script type="module">
+		import "./js/OrbitControls.js";
+	</script>
 	<script src="quaternion.js"></script>
 </body>
 </html>
