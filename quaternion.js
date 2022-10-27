@@ -115,36 +115,7 @@ function onDocumentMouseDown(event)
 			v1 = i[0].point.clone();
 			sphere1.position.set(v1.x, v1.y, v1.z);
 
-			v2 = findBest(v0, Math.PI / 8, 10, true);
-			sphere2.position.set(v2.x, v2.y, v2.z);
-		}
-	}
-}
-
-document.addEventListener("mousedown", onDocumentMouseDown,  false);
-function onDocumentMouseDown(event)
-{
-	var ray   = new THREE.Raycaster();
-	var mouse = new THREE.Vector2();
-	var w     = renderer.domElement.clientWidth;
-	var h     = renderer.domElement.clientHeight;
-	mouse.x   =  (event.clientX / w) * 2 - 1;
-	mouse.y   = -(event.clientY / h) * 2 + 1;
-	ray.setFromCamera(mouse, camera);
-	var i = ray.intersectObject(sphere);
-	if (i.length > 0)
-	{
-		if (v0.equals(zero))
-		{
-			v0 = i[0].point.clone().normalize();
-			sphere0.position.set(v0.x, v0.y, v0.z);
-		}
-		else if (v1.equals(zero))
-		{
-			v1 = i[0].point.clone();
-			sphere1.position.set(v1.x, v1.y, v1.z);
-
-			v2 = findBest(v0, Math.PI / 8, 10, true);
+			v2 = findBest(v0, Math.PI / 8);
 			sphere2.position.set(v2.x, v2.y, v2.z);
 		}
 	}
@@ -201,31 +172,37 @@ function updateCameraPosition()
 	camera.lookAt(scene.position);	
 }
 
-function findBest(p0, alpha, maxRec, drawAll)
+function findBest(p0, alpha, beta = Math.PI * 2, maxRec = 10, drawAll = true)
 {
 	if (maxRec == 0)
 		return p0;
 
-	var axis1 = new THREE.Vector3(0, 1, 0).cross(v0).normalize();
-	var axis2 = axis1.clone().cross(v0).normalize();
+	var axis = new THREE.Vector3(0, 1, 0).cross(p0).normalize();
+	if (!p0.equals(v0))
+		axis = v0.clone().cross(p0).normalize();
 
 	var p = [];
-	p.push(p0.clone().applyAxisAngle(axis1, alpha));
-	for (var i = 0; i < 7; i++)
-		p.push(p[i].clone().applyAxisAngle(p0, Math.PI / 4));
-	var p2 = [];
-	p2.push(p0.clone().applyAxisAngle(axis1, alpha / 2));
-	p2[0].applyAxisAngle(p0, Math.PI / 4);
-	for (var i = 0; i < 3; i++)
-		p2.push(p2[i].clone().applyAxisAngle(p0, Math.PI / 2));
+	for (var i = 0; i < 4; i++)
+		p.push(p0.clone());
+	p[0].applyAxisAngle(v0,    beta / 4);
+	p[1].applyAxisAngle(v0,   -beta / 4);
+	p[2].applyAxisAngle(v0,   -beta / 4);
+	p[3].applyAxisAngle(v0,    beta / 4);
+	p[0].applyAxisAngle(axis, -alpha);
+	p[1].applyAxisAngle(axis, -alpha);
+	p[2].applyAxisAngle(axis,  alpha);
+	p[3].applyAxisAngle(axis,  alpha);
 
-	drawPoints(p, p2, true);
+	drawPoints(p0, alpha, beta);
+
+	if (beta == Math.PI * 2)
+		beta /= 2;
 
 	var list = [];
-	list.push([p2[0], p2[0].angleTo(v1)]);
-	list.push([p2[1], p2[1].angleTo(v1)]);
-	list.push([p2[2], p2[2].angleTo(v1)]);
-	list.push([p2[3], p2[3].angleTo(v1)]);
+	list.push([p[0], p[0].angleTo(v1)]);
+	list.push([p[1], p[1].angleTo(v1)]);
+	list.push([p[2], p[2].angleTo(v1)]);
+	list.push([p[3], p[3].angleTo(v1)]);
 	list.sort(function(a, b)
 	{
 		return a[1] - b[1];
@@ -233,29 +210,31 @@ function findBest(p0, alpha, maxRec, drawAll)
 	if (list[0][1] < 0.0087)
 		return p0;
 
-	return findBest(list[0][0], alpha / 2, --maxRec, true);
+	return findBest(list[0][0], alpha / 2, beta / 2, --maxRec, false);
 }
 
-function drawPoints(p, p2, full)
+function drawPoints(p, alpha, beta)
 {
-	var smallGeo = new THREE.SphereGeometry(0.02);
-	var mat1 = new THREE.MeshBasicMaterial({ color: 0x00ffaa });
-	var mat2 = new THREE.MeshBasicMaterial({ color: 0xee9900 });
-	var s = [];
-	var s2 = [];
-	if (full)
-	{
-		for (var i = 0; i < 8; i++)
-		{
-			s.push(new THREE.Mesh(smallGeo, mat1));
-			s[i].position.set(p[i].x, p[i].y, p[i].z);
-			scene.add(s[i]);
-		}
-	}
-	for (var i = 0; i < 4; i++)
-	{
-		s2.push(new THREE.Mesh(smallGeo, mat2));
-		s2[i].position.set(p2[i].x, p2[i].y, p2[i].z);
-		scene.add(s2[i]);
-	}
+	var mat = new THREE.MeshBasicMaterial({ color: 0x00ffaa });
+	if (!v0.equals(p))
+		alpha = v0.angleTo(p);
+	var ringGeo  = new THREE.TorusGeometry(Math.sin(alpha) + 0.005, 0.005, 3, 64);
+	var ring = new THREE.Mesh(ringGeo, mat);
+	ring.position.set(v0.x, v0.y, v0.z);
+	ring.position.multiplyScalar(Math.cos(alpha));
+	var ux = new THREE.Vector3(1, 0, 0);
+	var uy = new THREE.Vector3(0, 1, 0);
+	var px = v0.clone();
+	var py = v0.clone();
+	px.y = 0;
+	py.x = 0;
+	px.normalize();
+	py.normalize();
+	var rx = py.angleTo(uy);
+	var ry = px.angleTo(ux);
+	console.log(rx * 180 / Math.PI, ry * 180 / Math.PI);
+//	ring.rotation.set(rx + Math.PI / 2, ry + Math.PI / 2, 0);
+	ring.rotateY(ry + Math.PI / 2);
+	ring.rotateOnAxis(uy.cross(py), -rx + Math.PI / 2);
+	scene.add(ring);
 }

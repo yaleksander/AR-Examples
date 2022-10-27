@@ -307,7 +307,7 @@ function findBest(p0, alpha, maxRec, drawAll)
 	p04.applyQuaternion(q1);
 	drawPoints(p1, p2, p3, p4, p5, p6, p7, p8, p9, p01, p02, p03, p04, drawAll);
 */
-	drawPoints(p, p2, true);
+	drawPoints(p0, p, p2, alpha, true);
 
 	var list = [];
 	list.push([p2[0], p2[0].angleTo(v1)]);
@@ -325,7 +325,7 @@ function findBest(p0, alpha, maxRec, drawAll)
 //	return new THREE.Vector3(0, 0, 0);
 }
 
-function drawPoints(p, p2, full)
+function drawPoints(p0, p, p2, alpha, full)
 {
 /*
 	var smallGeo = new THREE.SphereGeometry(0.02);
@@ -375,15 +375,26 @@ function drawPoints(p, p2, full)
 	}
 */
 	var smallGeo = new THREE.SphereGeometry(0.02);
+	var ringGeo  = new THREE.TorusGeometry(Math.sin(alpha) + 0.02, 0.02, 3, 64);
 	var mat1 = new THREE.MeshBasicMaterial({ color: 0x00ffaa });
 	var mat2 = new THREE.MeshBasicMaterial({ color: 0xee9900 });
 	var s = [];
 	var s2 = [];
-	for (var i = 0; i < 8; i++)
+	var ring = new THREE.Mesh(ringGeo, mat1);
+	var q = new THREE.Quaternion().setFromAxisAngle(p0, 0);
+	ring.applyQuaternion(q);
+	ring.position.set(p0.x, p0.y, p0.z);
+	var axis1 = v0.clone().cross(p0).normalize();
+	ring.rotateOnAxis(axis1, -v0.angleTo(p0));
+	//scene.add(ring);
+	if (full)
 	{
-		s.push(new THREE.Mesh(smallGeo, mat1));
-		s[i].position.set(p[i].x, p[i].y, p[i].z);
-		scene.add(s[i]);
+		for (var i = 0; i < 8; i++)
+		{
+			s.push(new THREE.Mesh(smallGeo, mat1));
+			s[i].position.set(p[i].x, p[i].y, p[i].z);
+			scene.add(s[i]);
+		}
 	}
 	for (var i = 0; i < 4; i++)
 	{
@@ -392,3 +403,4 @@ function drawPoints(p, p2, full)
 		scene.add(s2[i]);
 	}
 }
+
