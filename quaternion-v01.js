@@ -208,6 +208,61 @@ function findBest(p0, alpha, maxRec, drawAll)
 
 	var axis1 = new THREE.Vector3(0, 1, 0).cross(v0).normalize();
 	var axis2 = axis1.clone().cross(v0).normalize();
+/*
+	var p1 = p0.clone();
+	var p2 = p0.clone();
+	var p3 = p0.clone();
+	var p4 = p0.clone();
+	var p5 = p0.clone();
+	var p6 = p0.clone();
+	var p7 = p0.clone();
+	var p8 = p0.clone();
+	var p9 = p0.clone();
+	var p01 = p0.clone();
+	var p02 = p0.clone();
+	var p03 = p0.clone();
+	var p04 = p0.clone();
+
+	var q1 = new THREE.Quaternion();
+	var q2 = new THREE.Quaternion();
+	var q3 = new THREE.Quaternion();
+	var q4 = new THREE.Quaternion();
+	var q6 = new THREE.Quaternion();
+	var q7 = new THREE.Quaternion();
+	var q8 = new THREE.Quaternion();
+	var q9 = new THREE.Quaternion();
+	var q01 = new THREE.Quaternion();
+	var q02 = new THREE.Quaternion();
+	var q03 = new THREE.Quaternion();
+	var q04 = new THREE.Quaternion();
+	q2.setFromAxisAngle(axis1,  alpha);
+	q4.setFromAxisAngle(axis2, -alpha);
+	q6.setFromAxisAngle(axis2,  alpha);
+	q8.setFromAxisAngle(axis1, -alpha);
+	q1.multiplyQuaternions(q2, q4);
+	q3.multiplyQuaternions(q2, q6);
+	q7.multiplyQuaternions(q4, q8);
+	q9.multiplyQuaternions(q6, q8);
+	THREE.Quaternion.slerp(q6, q8, q01, 0.5);
+	THREE.Quaternion.slerp(q4, q8, q02, 0.5);
+	THREE.Quaternion.slerp(q2, q4, q03, 0.5);
+	THREE.Quaternion.slerp(q2, q6, q04, 0.5);
+
+	p1.applyQuaternion(q1);
+	p2.applyQuaternion(q2);
+	p3.applyQuaternion(q3);
+	p4.applyQuaternion(q4);
+	p6.applyQuaternion(q6);
+	p7.applyQuaternion(q7);
+	p8.applyQuaternion(q8);
+	p9.applyQuaternion(q9);
+	p01.applyQuaternion(q01);
+	p02.applyQuaternion(q02);
+	p03.applyQuaternion(q03);
+	p04.applyQuaternion(q04);
+
+	drawPoints(p1, p2, p3, p4, p5, p6, p7, p8, p9, p01, p02, p03, p04, drawAll);
+*/
 
 	var p = [];
 	p.push(p0.clone().applyAxisAngle(axis1, alpha));
@@ -219,6 +274,39 @@ function findBest(p0, alpha, maxRec, drawAll)
 	for (var i = 0; i < 3; i++)
 		p2.push(p2[i].clone().applyAxisAngle(p0, Math.PI / 2));
 
+/*	
+	var p01 = p1.clone();
+	var p02 = p1.clone();
+	var p03 = p1.clone();
+	var p04 = p1.clone();
+
+	var q0 = new THREE.Quaternion().setFromAxisAngle(p0, 0);
+	var q1 = q0.clone();
+	q1.rotateTowards(q1, Math.PI / 4);
+	p2.applyQuaternion(q1);
+	q1.rotateTowards(q1, Math.PI / 4);
+	p3.applyQuaternion(q1);
+	q1.rotateTowards(q1, Math.PI / 4);
+	p4.applyQuaternion(q1);
+	q1.rotateTowards(q1, Math.PI / 4);
+	p5.applyQuaternion(q1);
+	q1.rotateTowards(q1, Math.PI / 4);
+	p6.applyQuaternion(q1);
+	q1.rotateTowards(q1, Math.PI / 4);
+	p7.applyQuaternion(q1);
+	q1.rotateTowards(q1, Math.PI / 4);
+	p8.applyQuaternion(q1);
+	var q2 = new THREE.Quaternion().setFromAxisAngle(p0, 0);
+	q1.rotateTowards(q1, Math.PI / 2);
+	p01.applyQuaternion(q1);
+	q1.rotateTowards(q1, Math.PI / 2);
+	p02.applyQuaternion(q1);
+	q1.rotateTowards(q1, Math.PI / 2);
+	p03.applyQuaternion(q1);
+	q1.rotateTowards(q1, Math.PI / 2);
+	p04.applyQuaternion(q1);
+	drawPoints(p1, p2, p3, p4, p5, p6, p7, p8, p9, p01, p02, p03, p04, drawAll);
+*/
 	drawPoints(p, p2, true);
 
 	var list = [];
@@ -233,24 +321,69 @@ function findBest(p0, alpha, maxRec, drawAll)
 	if (list[0][1] < 0.0087)
 		return p0;
 
-	return findBest(list[0][0], alpha / 2, --maxRec, true);
+	return findBest(list[0][0], alpha / 2, --maxRec, false);
+//	return new THREE.Vector3(0, 0, 0);
 }
 
 function drawPoints(p, p2, full)
 {
+/*
+	var smallGeo = new THREE.SphereGeometry(0.02);
+	var mat1 = new THREE.MeshBasicMaterial({ color: 0x00ffaa });
+	var mat2 = new THREE.MeshBasicMaterial({ color: 0xee9900 });
+	var s2 = new THREE.Mesh(smallGeo, mat1);
+	var s4 = new THREE.Mesh(smallGeo, mat1);
+	var s6 = new THREE.Mesh(smallGeo, mat1);
+	var s8 = new THREE.Mesh(smallGeo, mat1);
+	var s01 = new THREE.Mesh(smallGeo, mat2);
+	var s02 = new THREE.Mesh(smallGeo, mat2);
+	var s03 = new THREE.Mesh(smallGeo, mat2);
+	var s04 = new THREE.Mesh(smallGeo, mat2);
+	s2.position.set(p[2].x, p[2].y, p[2].z);
+	s4.position.set(p[4].x, p[4].y, p[4].z);
+	s6.position.set(p[6].x, p[6].y, p[6].z);
+	s8.position.set(p[8].x, p[8].y, p[8].z);
+	s01.position.set(pq[0].x, pq[0].y, pq[0].z);
+	s02.position.set(pq[1].x, pq[1].y, pq[1].z);
+	s03.position.set(pq[2].x, pq[2].y, pq[2].z);
+	s04.position.set(pq[3].x, pq[3].y, pq[3].z);
+	scene.add(s2);
+	scene.add(s4);
+	scene.add(s6);
+	scene.add(s8);
+	scene.add(s01);
+	scene.add(s02);
+	scene.add(s03);
+	scene.add(s04);
+	if (full)
+	{
+		var s1 = new THREE.Mesh(smallGeo, mat1);
+		var s3 = new THREE.Mesh(smallGeo, mat1);
+//		var s5 = new THREE.Mesh(smallGeo, mat2);
+		var s7 = new THREE.Mesh(smallGeo, mat1);
+		var s9 = new THREE.Mesh(smallGeo, mat1);
+		s1.position.set(p[1].x, p[1].y, p[1].z);
+		s3.position.set(p[3].x, p[3].y, p[3].z);
+//		s5.position.set(p[5].x, p[5].y, p[5].z);
+		s7.position.set(p[7].x, p[7].y, p[7].z);
+		s9.position.set(p[9].x, p[9].y, p[9].z);
+		scene.add(s1);
+		scene.add(s3);
+//		scene.add(s5);
+		scene.add(s7);
+		scene.add(s9);
+	}
+*/
 	var smallGeo = new THREE.SphereGeometry(0.02);
 	var mat1 = new THREE.MeshBasicMaterial({ color: 0x00ffaa });
 	var mat2 = new THREE.MeshBasicMaterial({ color: 0xee9900 });
 	var s = [];
 	var s2 = [];
-	if (full)
+	for (var i = 0; i < 8; i++)
 	{
-		for (var i = 0; i < 8; i++)
-		{
-			s.push(new THREE.Mesh(smallGeo, mat1));
-			s[i].position.set(p[i].x, p[i].y, p[i].z);
-			scene.add(s[i]);
-		}
+		s.push(new THREE.Mesh(smallGeo, mat1));
+		s[i].position.set(p[i].x, p[i].y, p[i].z);
+		scene.add(s[i]);
 	}
 	for (var i = 0; i < 4; i++)
 	{

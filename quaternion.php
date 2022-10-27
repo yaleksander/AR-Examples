@@ -15,7 +15,7 @@
 	<script src="threex/threex-arbasecontrols.js"></script>
 	<script src="threex/threex-armarkercontrols.js"></script>
 </head>
-<body>
+<body style="background-color: black">
 	<script src="quaternion.js"></script>
 </body>
 </html>
