@@ -37,7 +37,7 @@ function initialize()
 	totalTime = 0;
 
 	var sphereGeo = new THREE.SphereGeometry(1, 64, 64);
-	var smallGeo = new THREE.SphereGeometry(0.05);
+	var smallGeo = new THREE.SphereGeometry(0.02);
 	var planeGeo = new THREE.PlaneGeometry(4, 4);
 
 	var sphereMat = new THREE.MeshNormalMaterial();
@@ -84,7 +84,7 @@ function onWindowResize()
 {
 	camera.aspect = window.innerWidth / window.innerHeight;
 	camera.updateProjectionMatrix();
-	renderer.setSize( window.innerWidth, window.innerHeight );
+	renderer.setSize(window.innerWidth, window.innerHeight);
 }
 
 var v0 = new THREE.Vector3(0, 0, 0);
@@ -172,69 +172,131 @@ function updateCameraPosition()
 	camera.lookAt(scene.position);	
 }
 
-function findBest(p0, alpha, beta = Math.PI * 2, maxRec = 10, drawAll = true)
+function findBest(p0, alpha, beta = Math.PI, acc = 0, maxRec = 10, first = true)
 {
-	if (maxRec == 0)
-		return p0;
-
-	var axis = new THREE.Vector3(0, 1, 0).cross(p0).normalize();
-	if (!p0.equals(v0))
-		axis = v0.clone().cross(p0).normalize();
-
 	var p = [];
-	for (var i = 0; i < 4; i++)
-		p.push(p0.clone());
-	p[0].applyAxisAngle(v0,    beta / 4);
-	p[1].applyAxisAngle(v0,   -beta / 4);
-	p[2].applyAxisAngle(v0,   -beta / 4);
-	p[3].applyAxisAngle(v0,    beta / 4);
-	p[0].applyAxisAngle(axis, -alpha);
-	p[1].applyAxisAngle(axis, -alpha);
-	p[2].applyAxisAngle(axis,  alpha);
-	p[3].applyAxisAngle(axis,  alpha);
+	if (first)
+	{
+		var axis = new THREE.Vector3(0, 1, 0).cross(v0).normalize();
+		for (var i = 0; i < 4; i++)
+		{
+			p.push(p0.clone().applyAxisAngle(axis, alpha / 2));
+			p[i].applyAxisAngle(v0, i * Math.PI / 2 + Math.PI * 3 / 4);
+		}
+	}
+	else
+	{
+		var axis = v0.clone().cross(p0).normalize();
+		for (var i = 0; i < 4; i++)
+			p.push(p0.clone());
+		p[0].applyAxisAngle(axis,  alpha / 2);
+		p[1].applyAxisAngle(axis,  alpha / 2);
+		p[2].applyAxisAngle(axis, -alpha / 2);
+		p[3].applyAxisAngle(axis, -alpha / 2);
+		p[0].applyAxisAngle(v0,   -beta / 4);
+		p[1].applyAxisAngle(v0,    beta / 4);
+		p[2].applyAxisAngle(v0,    beta / 4);
+		p[3].applyAxisAngle(v0,   -beta / 4);
+/*
+		var m1 = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+		var m2 = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+		var m3 = new THREE.MeshBasicMaterial({ color: 0x0000ff });
+		var m4 = new THREE.MeshBasicMaterial({ color: 0xffffff });
+		var g  = new THREE.SphereGeometry(0.02);
+		var s1 = new THREE.Mesh(g, m1);
+		var s2 = new THREE.Mesh(g, m2);
+		var s3 = new THREE.Mesh(g, m3);
+		var s4 = new THREE.Mesh(g, m4);
+		s1.position.set(p[0].x, p[0].y, p[0].z);
+		s2.position.set(p[1].x, p[1].y, p[1].z);
+		s3.position.set(p[2].x, p[2].y, p[2].z);
+		s4.position.set(p[3].x, p[3].y, p[3].z);
+		scene.add(s1);
+		scene.add(s2);
+		scene.add(s3);
+		scene.add(s4);
+*/
+	}
 
-	drawPoints(p0, alpha, beta);
-
-	if (beta == Math.PI * 2)
-		beta /= 2;
-
+	// criterio: diferenca angular entre p[i] e v1
 	var list = [];
-	list.push([p[0], p[0].angleTo(v1)]);
-	list.push([p[1], p[1].angleTo(v1)]);
-	list.push([p[2], p[2].angleTo(v1)]);
-	list.push([p[3], p[3].angleTo(v1)]);
+	for (var i = 0; i < 4; i++)
+		list.push([p[i], p[i].distanceTo(v1), i]);
 	list.sort(function(a, b)
 	{
 		return a[1] - b[1];
 	});
-	if (list[0][1] < 0.0087)
+
+	drawPoints(p0, alpha, beta, acc, first);
+
+	// condicao de parada: se a diferenca angular for menor que 0.5 grau (0.0087 rad)
+	// condicao de parada: atingiu o maximo de recursoes (10)
+	if (maxRec == 0 || list[0][1] < 0.0087)
 		return p0;
 
-	return findBest(list[0][0], alpha / 2, beta / 2, --maxRec, false);
+	//acc += (first ? list[0][2] * Math.PI / 2 : ((list[0][2] == 1 || list[0][2] == 2) ? -beta : beta) / 4);
+	if (first)
+		acc += list[0][2] * Math.PI / 2;
+	else if (list[0][2] == 1 || list[0][2] == 2)
+		acc += beta / 2;
+
+	return findBest(list[0][0], alpha / 2, beta / 2, acc, --maxRec, false);
 }
 
-function drawPoints(p, alpha, beta)
+function drawPoints(p, alpha, beta, acc, first)
 {
-	var mat = new THREE.MeshBasicMaterial({ color: 0x00ffaa });
-	if (!v0.equals(p))
-		alpha = v0.angleTo(p);
-	var ringGeo  = new THREE.TorusGeometry(Math.sin(alpha) + 0.005, 0.005, 3, 64);
-	var ring = new THREE.Mesh(ringGeo, mat);
-	ring.position.set(v0.x, v0.y, v0.z);
-	ring.position.multiplyScalar(Math.cos(alpha));
 	var ux = new THREE.Vector3(1, 0, 0);
-	var uy = new THREE.Vector3(0, 1, 0);
 	var px = v0.clone();
-	var py = v0.clone();
 	px.y = 0;
-	py.x = 0;
-	px.normalize();
-	py.normalize();
-	var rx = py.angleTo(uy);
+	var rx = px.angleTo(v0);
 	var ry = px.angleTo(ux);
-	console.log(rx * 180 / Math.PI, ry * 180 / Math.PI);
-//	ring.rotation.set(rx + Math.PI / 2, ry + Math.PI / 2, 0);
-	ring.rotateY(ry + Math.PI / 2);
-	ring.rotateOnAxis(uy.cross(py), -rx + Math.PI / 2);
-	scene.add(ring);
+	if (v0.y > 0)
+		rx *= -1;
+
+	var mat = new THREE.MeshBasicMaterial({ color: 0x00ffaa });
+	if (first)
+	{
+		var ringGeo = new THREE.TorusGeometry(Math.sin(alpha) + 0.005, 0.005, 3, 64);
+		var ring = new THREE.Mesh(ringGeo, mat);
+		ring.position.set(v0.x, v0.y, v0.z);
+		ring.position.multiplyScalar(Math.cos(alpha));
+		ring.rotateY(Math.PI / 2 - ry);
+		ring.rotateX(rx);
+
+		var crossLines = new THREE.TorusGeometry(1.005, 0.005, 3, 64, alpha * 2);
+		var ver = new THREE.Mesh(crossLines, mat);
+		var hor = new THREE.Mesh(crossLines, mat);
+		hor.rotateY(Math.PI / 2 - ry);
+		ver.rotateY(-ry);
+		hor.rotateX(rx + Math.PI / 2);
+		hor.rotateZ(alpha * 3);
+		ver.rotateZ(-alpha - rx);
+
+		scene.add(ring);
+		scene.add(ver);
+		scene.add(hor);
+	}
+	else
+	{
+		mat = new THREE.MeshBasicMaterial({ color: 0xeeee44 });
+
+		var a = p.angleTo(v0);
+		var hGeo = new THREE.TorusGeometry(Math.sin(a) + 0.005, 0.005, 3, 64, beta);
+		var hor = new THREE.Mesh(hGeo, mat);
+		hor.position.set(v0.x, v0.y, v0.z);
+		hor.position.multiplyScalar(Math.cos(a));
+		hor.rotateY(Math.PI / 2 - ry);
+		hor.rotateX(rx);
+		hor.rotateZ(acc);
+
+		var vGeo = new THREE.TorusGeometry(1.005, 0.005, 3, 64, alpha * 2);
+		var ver = new THREE.Mesh(vGeo, mat);
+		ver.rotateY(Math.PI / 2 - ry);
+		ver.rotateX(rx + Math.PI / 2);
+		ver.rotateY(acc + beta / 2);
+		ver.rotateZ(Math.PI / 2 - a - alpha);
+
+		scene.add(hor);
+		scene.add(ver);
+	}
 }
