@@ -790,8 +790,8 @@ function setShadowFromGroundTruth(list, debug = false)
 	var size = 4096;
 	//while (Math.pow(++grid, 2) + 1 < v3.length);
 	var mult = size / (grid * 256);
-	var canvas2 = document.createElement("canvas");
 	var sqr = Math.floor(size / grid);
+	var canvas2 = document.createElement("canvas");
 	canvas2.width  = size;
 	canvas2.height = size;
 	var ctx2 = canvas2.getContext("2d");
@@ -923,8 +923,13 @@ function setShadowFromGroundTruth(list, debug = false)
 	k = mi; // método 1: união / interseção
 	//k = candidates[0][3]; // método 2: ordena por maior interseção, guarda os 10% melhores, reordena por menor diferença entre união e interseção
 
-	light.position.set(v3[k][2].x, v3[k][2].y, v3[k][2].z);
+//	light.position.set(v3[k][2].x, v3[k][2].y, v3[k][2].z);
 	emptyObj.position.set(v3[k][1].x, v3[k][1].y, v3[k][1].z);
+
+	var v5 = v3[k][2].clone().sub(v3[k][1]).normalize();
+	console.log(mv);
+	var v6 = findBestInSphere(mask, v3[k][1], v5, Math.PI / 4);
+	light.position.set(v6.x, v6.y, v6.z);
 
 	if (debug)
 	{
@@ -961,7 +966,7 @@ function setShadowFromGroundTruth(list, debug = false)
 		}
 		//console.log(str);
 	}
-	console.log(v3[mi][4], v3[candidates[0][3]][4]);
+	//console.log(v3[mi][4], v3[candidates[0][3]][4]);
 	done = true;
 }
 
@@ -998,6 +1003,103 @@ function shrinkList(list, t)
 		if (list[i][11] < i * t - 180)
 			list.splice(i--, 1);
 	return list;
+}
+
+
+//
+function findBestInSphere(mask, ori, v0, alpha, beta = Math.PI, p0 = v0.clone(), prev = 0, maxRec = 100, first = true)
+{
+	var p = [];
+	if (first)
+	{
+		var axis = new THREE.Vector3(0, 1, 0).cross(v0).normalize();
+		for (var i = 0; i < 4; i++)
+		{
+			p.push(p0.clone().applyAxisAngle(axis, alpha / 2));
+			p[i].applyAxisAngle(v0, i * Math.PI / 2 + Math.PI * 3 / 4);
+		}
+	}
+	else
+	{
+		var axis = v0.clone().cross(p0).normalize();
+		for (var i = 0; i < 4; i++)
+			p.push(p0.clone());
+		p[0].applyAxisAngle(axis,  alpha / 2);
+		p[1].applyAxisAngle(axis,  alpha / 2);
+		p[2].applyAxisAngle(axis, -alpha / 2);
+		p[3].applyAxisAngle(axis, -alpha / 2);
+		p[0].applyAxisAngle(v0,   -beta  / 4);
+		p[1].applyAxisAngle(v0,    beta  / 4);
+		p[2].applyAxisAngle(v0,    beta  / 4);
+		p[3].applyAxisAngle(v0,   -beta  / 4);
+	}
+
+	var list = [];
+
+	var w    = renderer.domElement.clientWidth;
+	var h    = renderer.domElement.clientHeight;
+	var padw = (w > h) ? Math.floor((w - h) / 2.0) : 0;
+	var padh = (h > w) ? Math.floor((h - w) / 2.0) : 0;
+
+	var canvas = document.createElement("canvas");
+	canvas.width  = 256;
+	canvas.height = 256;
+	var ctx = canvas.getContext("2d");
+	ctx.fillStyle = "white";
+
+	var rend = new THREE.WebGLRenderer({
+		preserveDrawingBuffer: true,
+		antialias: true,
+		alpha: true
+	});
+	rend.setClearColor(new THREE.Color('white'), 0);
+	rend.setSize(w, h);
+	rend.shadowMap.enabled = true;
+
+	for (var i = 0; i < 4; i++)
+	{
+		var v1 = (p[i].clone().multiplyScalar(5)).add(ori);
+		light.position.set(v1.x, v1.y, v1.z);
+		emptyObj.position.set(ori.x, ori.y, ori.z);
+		rend.render(mainScene2, camera);
+		ctx.fillRect(0, 0, 256, 256);
+		ctx.drawImage(rend.domElement, padw, padh, w - padw * 2, h - padh * 2, 0, 0, 256, 256);
+		var c00 = 0;
+		var c01 = 0;
+		var c10 = 0;
+		var c11 = 0;
+		var d   = ctx.getImageData(0, 0, 256, 256);
+		for (var j = 0; j < 65536; j++)
+		{
+			var c = (d.data[j * 4] > 250) ? 1 : 0;
+			if (c == 0 && mask[j] == 0)
+				c00++;
+			else if (c == 0 && mask[j] == 1)
+				c01++;
+			else if (c == 1 && mask[j] == 0)
+				c10++;
+			else
+				c11++;
+		}
+		var val = 0;
+		var uni = c00 + c01 + c10;
+		var ins = c00;
+		if (uni > 0)
+			val = parseFloat(ins) / uni;
+		list.push([p[i], val, i]);
+	}
+	list.sort(function(a, b)
+	{
+		return b[1] - a[1]; // b - a: maior valor primeiro; a - b: menor valor primeiro
+	});
+
+	// condicao de parada: se a diferenca angular for menor que 0.5 grau (0.0087 rad)
+	// condicao de parada: atingiu o maximo de recursoes (10)
+	if (maxRec == 0 || list[0][1] <= prev)
+		return p0;
+
+	console.log(list[0][1]);
+	return findBestInSphere(mask, ori, v0, alpha / 2, beta / 2, list[0][0], list[0][1], --maxRec, false);
 }
 
 

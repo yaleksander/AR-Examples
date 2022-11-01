@@ -197,25 +197,6 @@ function findBest(p0, alpha, beta = Math.PI, acc = 0, maxRec = 10, first = true)
 		p[1].applyAxisAngle(v0,    beta / 4);
 		p[2].applyAxisAngle(v0,    beta / 4);
 		p[3].applyAxisAngle(v0,   -beta / 4);
-/*
-		var m1 = new THREE.MeshBasicMaterial({ color: 0xff0000 });
-		var m2 = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
-		var m3 = new THREE.MeshBasicMaterial({ color: 0x0000ff });
-		var m4 = new THREE.MeshBasicMaterial({ color: 0xffffff });
-		var g  = new THREE.SphereGeometry(0.02);
-		var s1 = new THREE.Mesh(g, m1);
-		var s2 = new THREE.Mesh(g, m2);
-		var s3 = new THREE.Mesh(g, m3);
-		var s4 = new THREE.Mesh(g, m4);
-		s1.position.set(p[0].x, p[0].y, p[0].z);
-		s2.position.set(p[1].x, p[1].y, p[1].z);
-		s3.position.set(p[2].x, p[2].y, p[2].z);
-		s4.position.set(p[3].x, p[3].y, p[3].z);
-		scene.add(s1);
-		scene.add(s2);
-		scene.add(s3);
-		scene.add(s4);
-*/
 	}
 
 	// criterio: diferenca angular entre p[i] e v1
