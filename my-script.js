@@ -928,7 +928,7 @@ function setShadowFromGroundTruth(list, debug = false)
 
 	var v5 = v3[k][2].clone().sub(v3[k][1]).normalize();
 	console.log(mv);
-	var v6 = findBestInSphere(mask, v3[k][1], v5, Math.PI / 4);
+	var v6 = findBestInSphere(mask, v3[k][1], v5, Math.PI / 4).multiplyScalar(2).add(v3[k][1]);
 	light.position.set(v6.x, v6.y, v6.z);
 
 	if (debug)
@@ -1058,7 +1058,7 @@ function findBestInSphere(mask, ori, v0, alpha, beta = Math.PI, p0 = v0.clone(),
 
 	for (var i = 0; i < 4; i++)
 	{
-		var v1 = (p[i].clone().multiplyScalar(5)).add(ori);
+		var v1 = (p[i].clone().multiplyScalar(2)).add(ori);
 		light.position.set(v1.x, v1.y, v1.z);
 		emptyObj.position.set(ori.x, ori.y, ori.z);
 		rend.render(mainScene2, camera);
@@ -1093,8 +1093,8 @@ function findBestInSphere(mask, ori, v0, alpha, beta = Math.PI, p0 = v0.clone(),
 		return b[1] - a[1]; // b - a: maior valor primeiro; a - b: menor valor primeiro
 	});
 
-	// condicao de parada: se a diferenca angular for menor que 0.5 grau (0.0087 rad)
-	// condicao de parada: atingiu o maximo de recursoes (10)
+	// condicao de parada: se nao houver candidato melhor que a recursao anterior
+	// condicao de parada: atingiu o maximo de recursoes (100)
 	if (maxRec == 0 || list[0][1] <= prev)
 		return p0;
 
