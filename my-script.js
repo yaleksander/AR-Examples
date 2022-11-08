@@ -1,6 +1,6 @@
 var clock, deltaTime, totalTime;
 var arToolkitSource, arToolkitContext;
-var camera, renderer1, renderer, renderer3;
+var camera, renderer1, renderer, renderer3, rend;
 var mainScene1, mainScene2, mainScene3;
 var scene1, scene2, scene3;
 var emptyObj, vObj, vObjMask, shadowPlane, light, floor;
@@ -777,7 +777,7 @@ function setShadowFromGroundTruth(list, debug = false)
 	var ctx = canvas.getContext("2d");
 	ctx.fillStyle = "white";
 
-	var rend = new THREE.WebGLRenderer({
+	rend = new THREE.WebGLRenderer({
 		preserveDrawingBuffer: true,
 		antialias: true,
 		alpha: true
@@ -927,12 +927,99 @@ function setShadowFromGroundTruth(list, debug = false)
 	emptyObj.position.set(v3[k][1].x, v3[k][1].y, v3[k][1].z);
 
 	var v5 = v3[k][2].clone().sub(v3[k][1]).normalize();
-	console.log(mv);
-	var v6 = findBestInSphere(mask, v3[k][1], v5, Math.PI / 4).multiplyScalar(2).add(v3[k][1]);
+	var alpha = Math.PI / 8;
+	var v6 = findBestInSphere(mv, mask, v3[k][1], v5, alpha).multiplyScalar(3).add(v3[k][1]);
 	light.position.set(v6.x, v6.y, v6.z);
 
 	if (debug)
 	{
+		// 2022-11-07
+		var sub = 7;
+		var si = 1.0 / Math.pow(2, sub - 2);
+		var sj = Math.PI * 2 / Math.pow(2, sub);
+		var v7 = new THREE.Vector3(0, 1, 0).cross(v5);
+		var v8 = v5.clone();
+		var vl = [];
+		for (var i = si; i < 1; i += si)
+		{
+			v8.applyAxisAngle(v7, si * alpha);
+			for (var j = 0; j < Math.PI * 2; j += sj)
+			{
+				v8.applyAxisAngle(v5, sj);
+				vl.push([v8.clone().multiplyScalar(3).add(v3[k][1]), i * Math.cos(j), i * Math.sin(j), 0]);
+			}
+		}
+		var minVal = 1;
+		var maxVal = 0;
+		/*var rend = new THREE.WebGLRenderer({
+			preserveDrawingBuffer: true,
+			antialias: true,
+			alpha: true
+		});
+		rend.setClearColor(new THREE.Color('white'), 0);
+		rend.setSize(w, h);
+		rend.shadowMap.enabled = true;
+		var canvas = document.createElement("canvas");
+		canvas.width  = 256;
+		canvas.height = 256;
+		var ctx = canvas.getContext("2d");
+		ctx.fillStyle = "white";*/
+		for (var i = 0; i < vl.length; i++)
+		{
+			light.position.set(vl[i][0].x, vl[i][0].y, vl[i][0].z);
+			emptyObj.position.set(v3[k][1].x, v3[k][1].y, v3[k][1].z);
+			rend.render(mainScene2, camera);
+			ctx.fillRect(0, 0, 256, 256);
+			ctx.drawImage(rend.domElement, padw, padh, w - padw * 2, h - padh * 2, 0, 0, 256, 256);
+			var c00 = 0;
+			var c01 = 0;
+			var c10 = 0;
+			var c11 = 0;
+			var d   = ctx.getImageData(0, 0, 256, 256);
+			for (var j = 0; j < 65536; j++)
+			{
+				var c = (d.data[j * 4] > 250) ? 1 : 0;
+				if (c == 0 && mask[j] == 0)
+					c00++;
+				else if (c == 0 && mask[j] == 1)
+					c01++;
+				else if (c == 1 && mask[j] == 0)
+					c10++;
+				else
+					c11++;
+			}
+			var val = 0;
+			var uni = c00 + c01 + c10;
+			var ins = c00;
+			if (uni > 0)
+				val = parseFloat(ins) / uni;
+			vl[i][3] = val;
+			if (minVal > val)
+				minVal = val;
+			if (maxVal < val)
+				maxVal = val;
+		}
+		canvas2.width  = 512;
+		canvas2.height = 512;
+		ctx2 = canvas2.getContext("2d", true, false, "srgb", true);
+		ctx2.fillStyle = "black";
+		ctx2.fillRect(0, 0, size, size);
+		var m = mv;
+		if (m > maxVal)
+			m = minVal;
+		for (var i = 0; i < vl.length; i++)
+		{
+			if (vl[i][3] < m)
+				ctx2.fillStyle = "#" + Math.floor(255 * (vl[i][3] - minVal) / (m - minVal)).toString(16) + "ff00";
+			else
+				ctx2.fillStyle = "#ff" + Math.floor(255 - 255 * (vl[i][3] - m) / (maxVal - m)).toString(16) + "00";
+//			ctx2.fillStyle = "#ffffff";
+			ctx2.fillRect(vl[i][1] * 240 + 256, vl[i][2] * 240 + 256, 4, 4);
+		}
+		console.log(((100 - 100 * maxVal / mv) * -1).toFixed(3));
+
+		light.position.set(v6.x, v6.y, v6.z);
+
 		// imprime os candidatos
 		var link = document.getElementById('exportLink');
 		link.setAttribute('download', 'test.png');
@@ -1007,7 +1094,7 @@ function shrinkList(list, t)
 
 
 //
-function findBestInSphere(mask, ori, v0, alpha, beta = Math.PI, p0 = v0.clone(), prev = 0, maxRec = 100, first = true)
+function findBestInSphere(best, mask, ori, v0, alpha, beta = Math.PI, p0 = v0.clone(), prev = 0, maxRec = 400, first = true)
 {
 	var p = [];
 	if (first)
@@ -1036,17 +1123,17 @@ function findBestInSphere(mask, ori, v0, alpha, beta = Math.PI, p0 = v0.clone(),
 
 	var list = [];
 
-	var w    = renderer.domElement.clientWidth;
-	var h    = renderer.domElement.clientHeight;
-	var padw = (w > h) ? Math.floor((w - h) / 2.0) : 0;
-	var padh = (h > w) ? Math.floor((h - w) / 2.0) : 0;
-
 	var canvas = document.createElement("canvas");
 	canvas.width  = 256;
 	canvas.height = 256;
 	var ctx = canvas.getContext("2d");
 	ctx.fillStyle = "white";
 
+	var w    = renderer.domElement.clientWidth;
+	var h    = renderer.domElement.clientHeight;
+	var padw = (w > h) ? Math.floor((w - h) / 2.0) : 0;
+	var padh = (h > w) ? Math.floor((h - w) / 2.0) : 0;
+/*
 	var rend = new THREE.WebGLRenderer({
 		preserveDrawingBuffer: true,
 		antialias: true,
@@ -1055,10 +1142,10 @@ function findBestInSphere(mask, ori, v0, alpha, beta = Math.PI, p0 = v0.clone(),
 	rend.setClearColor(new THREE.Color('white'), 0);
 	rend.setSize(w, h);
 	rend.shadowMap.enabled = true;
-
+*/
 	for (var i = 0; i < 4; i++)
 	{
-		var v1 = (p[i].clone().multiplyScalar(2)).add(ori);
+		var v1 = (p[i].clone().multiplyScalar(3)).add(ori);
 		light.position.set(v1.x, v1.y, v1.z);
 		emptyObj.position.set(ori.x, ori.y, ori.z);
 		rend.render(mainScene2, camera);
@@ -1093,13 +1180,15 @@ function findBestInSphere(mask, ori, v0, alpha, beta = Math.PI, p0 = v0.clone(),
 		return b[1] - a[1]; // b - a: maior valor primeiro; a - b: menor valor primeiro
 	});
 
-	// condicao de parada: se nao houver candidato melhor que a recursao anterior
+	// condicao de parada: se nao houver candidato melhor que a recursao anterior E ja atingiu um candidato melhor que o original
 	// condicao de parada: atingiu o maximo de recursoes (100)
-	if (maxRec == 0 || list[0][1] <= prev)
+	if (maxRec == 0 || (prev > best && list[0][1] <= prev))
+	{
+		console.log(((100 - 100 * Math.max(prev, list[0][1]) / best) * -1).toFixed(3));
 		return p0;
+	}
 
-	console.log(list[0][1]);
-	return findBestInSphere(mask, ori, v0, alpha / 2, beta / 2, list[0][0], list[0][1], --maxRec, false);
+	return findBestInSphere(best, mask, ori, v0, alpha / 2, beta / 2, list[0][0], list[0][1], --maxRec, false);
 }
 
 
@@ -1242,7 +1331,7 @@ function onDocumentKeyDown(event)
 			break;
 
 		default:
-			console.log(event.which);
+			//console.log(event.which);
 	}
 }
 
