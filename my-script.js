@@ -10,13 +10,13 @@ var asphaltFloor, stoneFloor, grassFloor;
 var gtObj1, gtObj2, gtObj3, gtLine1, gtLine2, gtLine3, gtPlane, phase;
 var adjustX, adjustZ;
 var lightFm, emptyObjFm, lp, ltp, lfp, lftp, whichLight = true;
-var files, fc, uival, fmval, done = false;
+var files, fc, uival, fmval, start = false, done = false;
 
 var ray    = new THREE.Raycaster();
 var mouse  = new THREE.Vector2();
 var loader = new THREE.TextureLoader();
 
-var planeSize, vObjHeight;
+var planeSize, sPlaneSize, sPlaneSegments, vObjHeight;
 var mag;
 
 initialize();
@@ -153,10 +153,12 @@ function initialize()
 	 *
 	 *********************************************************************************************/
 
-	planeSize  = 150.00;
-	vObjHeight =   1.20;
-	adjustX    =   0.00;
-	adjustZ    =   0.00;
+	planeSize      = 150.00;
+	sPlaneSize     =  15.00;
+	sPlaneSegments = 300.00;
+	vObjHeight     =   1.20;
+	adjustX        =   0.00;
+	adjustZ        =   0.00;
 
 	// 00000: 1.5, -0.1,  0.0
 	// 00608: 1.7,  0.2, -0.2
@@ -287,7 +289,7 @@ function initialize()
 	 *********************************************************************************************/
 
 	var ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
-	origLight = new THREE.DirectionalLight(0xffffff, 2);
+	origLight = new THREE.DirectionalLight(0xffffff);
 	origLight.castShadow = true;
 	var d = vObjHeight * 40;
 	origLight.shadow.camera.left   = -d;
@@ -314,6 +316,7 @@ function initialize()
 
 	var cube     = new THREE.BoxBufferGeometry(vObjHeight, vObjHeight, vObjHeight);
 	var plane    = new THREE.PlaneGeometry(planeSize, planeSize, 150, 150);
+	var splane   = new THREE.PlaneGeometry(sPlaneSize, sPlaneSize, sPlaneSegments, sPlaneSegments);
 	var sphere1  = new THREE.SphereGeometry(vObjHeight * 0.7, 32, 16);
 	var sphere2  = new THREE.SphereGeometry(vObjHeight * 0.9, 32, 16);
 	var sphere3  = new THREE.SphereGeometry(0.2, 32, 16);
@@ -332,7 +335,7 @@ function initialize()
 	vObj          = new THREE.Mesh(cube,    wood);
 	vObjMask      = new THREE.Mesh(cube,    maskMat);
 	wObj          = new THREE.Mesh(cube,    maskMat);
-	shadowPlane   = new THREE.Mesh(plane,   shadowMat);
+	shadowPlane   = new THREE.Mesh(splane,  shadowMat);
 	wPlane        = new THREE.Mesh(plane,   maskMat);
 	dPlane        = new THREE.Mesh(plane,   blackMat);
 
@@ -424,10 +427,12 @@ function initialize()
 	stoneSphere1.position.y = vObjHeight * 0.6;
 	stoneSphere2.position.y = vObjHeight * 0.4;
 	shadowPlane.position.y = floor.position.clone().y;
+//	shadowPlane.position.x = vObj.positoin.x;
+//	shadowPlane.position.z = vObj.positoin.z;
 	wPlane.rotation.x = -Math.PI / 2;
-	wPlane.position.y = floor.position.clone().y - 0.01;
+	wPlane.position.y = floor.position.clone().y - 0.2;
 	dPlane.rotation.x = -Math.PI / 2;
-	dPlane.position.y = floor.position.clone().y - 0.01;
+	dPlane.position.y = floor.position.clone().y - 0.2;
 	gtPlane.rotation.z = -Math.PI / 2;
 
 	/**********************************************************************************************
@@ -642,6 +647,7 @@ function setScene(id)
 
 function setShadowFromGroundTruth(list, debug = false)
 {
+	start = true;
 	console.log("start");
 
 	var v1     = [];
@@ -688,11 +694,21 @@ function setShadowFromGroundTruth(list, debug = false)
 
 	console.log("get floor points");
 
+	var listDebug = "===================================================================================================\n\n"
+	listDebug += "FLOOR POINTS\n\n"
+	listDebug += "===================================================================================================\n\n"
+
 	var w    = renderer.domElement.clientWidth;
 	var h    = renderer.domElement.clientHeight;
 	var padw = (w > h) ? Math.floor((w - h) / 2.0) : 0;
 	var padh = (h > w) ? Math.floor((h - w) / 2.0) : 0;
 	var m    = ((w > h) ? h : w) / 256.0;
+
+	listDebug += "W    = " + w + "\n";
+	listDebug += "H    = " + h + "\n";
+	listDebug += "PADW = " + padw + "\n";
+	listDebug += "PADH = " + padh + "\n";
+	listDebug += "M    = " + m + "\n\n";
 
 	// adquire conjunto de pontos a partir dos pontos 2d da sombra
 	var k = 0;
@@ -703,11 +719,19 @@ function setShadowFromGroundTruth(list, debug = false)
 		mouse.x  =  (x / w) * 2 - 1;
 		mouse.y  = -(y / h) * 2 + 1;
 
+		listDebug += x.toFixed(3) + " " + y.toFixed(3) + " " + mouse.x.toFixed(3) + " " + mouse.y.toFixed(3) + "\n";
+
 		ray.setFromCamera(mouse, camera);
 		var i = ray.intersectObject(shadowPlane);
 		if (i.length > 0)
-			v2.push(new THREE.Vector3((i[0].uv.x - 0.5) * planeSize, shadowPlane.position.y, (0.5 - i[0].uv.y) * planeSize));
+			v2.push(new THREE.Vector3((i[0].uv.x - 0.5) * sPlaneSize + shadowPlane.position.x, shadowPlane.position.y, (0.5 - i[0].uv.y) * sPlaneSize + shadowPlane.position.z));
 	}
+
+	listDebug += "\n===================================================================================================\n\n"
+	listDebug += "V2 BEFORE SHRINK\n\n"
+	listDebug += "===================================================================================================\n\n"
+	for (var i = 0; i < v2.length; i++)
+		listDebug += v2[i].x.toFixed(3) + " " + v2[i].y.toFixed(3) + " " + v2[i].z.toFixed(3) + "\n";
 
 	console.log("shrink list");
 
@@ -718,6 +742,14 @@ function setShadowFromGroundTruth(list, debug = false)
 		for (var j = i + 1; j < v2.length; j++)
 			if (v2[i].distanceTo(v2[j]) < t)
 				v2.splice(j--, 1);
+	console.log(v2.length);
+
+	listDebug += "\n===================================================================================================\n\n"
+	listDebug += "V2 AFTER SHRINK\n\n"
+	listDebug += "===================================================================================================\n\n"
+	for (var i = 0; i < v2.length; i++)
+		listDebug += v2[i].x.toFixed(3) + " " + v2[i].y.toFixed(3) + " " + v2[i].z.toFixed(3) + "\n";
+	//console.log(listDebug);
 
 	if (debug)
 	{
@@ -738,7 +770,7 @@ function setShadowFromGroundTruth(list, debug = false)
 		for (var j = 0; j < v2.length; j++)
 		{
 			var aux = v1[i].clone().sub(v2[j].clone());
-			var v   = aux.clone().normalize().multiplyScalar(2 * vObjHeight).add(v1[i].clone()); // quanto maior o escalar, mais longe fica a fonte de luz
+			var v   = aux.clone().normalize().multiplyScalar(3 * vObjHeight).add(v1[i].clone()); // quanto maior o escalar, mais longe fica a fonte de luz
 			v4.push([v1[i], v2[j], v, aux, Math.atan2(aux.z, aux.x) * 180 / Math.PI + 180]);
 		}
 	}
@@ -779,18 +811,22 @@ function setShadowFromGroundTruth(list, debug = false)
 
 	rend = new THREE.WebGLRenderer({
 		preserveDrawingBuffer: true,
-		antialias: true,
-		alpha: true
+		antialias: true,/*
+		alpha: false,
+		powerPreference: "high-performance",
+		failIfMajorPerformanceCaveat: true,
+		precision: "highp",*/
+		//logarithmicDepthBuffer: true
 	});
 	rend.setClearColor(new THREE.Color('white'), 0);
 	rend.setSize(w, h);
 	rend.shadowMap.enabled = true;
 
-	var grid = 16;
-	var size = 4096;
-	//while (Math.pow(++grid, 2) + 1 < v3.length);
-	var mult = size / (grid * 256);
+	var grid = 0;
+	while (Math.pow(++grid, 2) < v3.length);
+	var size = Math.max(grid * 256, 4096);
 	var sqr = Math.floor(size / grid);
+	size = sqr * grid;
 	var canvas2 = document.createElement("canvas");
 	canvas2.width  = size;
 	canvas2.height = size;
@@ -804,6 +840,10 @@ function setShadowFromGroundTruth(list, debug = false)
 	var mi = 0, mv = 0;
 	var candidates = [];
 
+	listDebug += "\n===================================================================================================\n\n"
+	listDebug += "IOU VALUES\n\n"
+	listDebug += "===================================================================================================\n\n"
+
 	for (k = 0; k < v3.length; k++)
 	{
 		var p1 = v3[k][1].clone();
@@ -814,7 +854,6 @@ function setShadowFromGroundTruth(list, debug = false)
 		rend.render(mainScene2, camera);
 		ctx.fillRect(0, 0, 256, 256);
 		ctx.drawImage(rend.domElement, padw, padh, w - padw * 2, h - padh * 2, 0, 0, 256, 256);
-		//ctx2.drawImage(rend.domElement, padw, padh, w - padw * 2, h - padh * 2, (k % grid) * sqr, Math.floor(k / grid) * sqr, sqr, sqr); // desenha os candidatos
 		var c00 = 0;
 		var c01 = 0;
 		var c10 = 0;
@@ -824,7 +863,7 @@ function setShadowFromGroundTruth(list, debug = false)
 		for (var i = 0; i < 65536; i++)
 		{
 //			console.log(d[i * 4]);
-			var c = (d.data[i * 4] > 250) ? 1 : 0;
+			var c = (d.data[i * 4] == 255) ? 1 : 0;
 //			if (i % 256 == 0 && i > 0)
 //				str += "\n";
 //			str += (mask[i] == 0) ? " " : ".";
@@ -837,7 +876,14 @@ function setShadowFromGroundTruth(list, debug = false)
 			else
 				c11++;
 
-			// visualizacao extra
+			if (c == 0)
+			{
+				d.data[i * 4 + 0] =   0;
+				d.data[i * 4 + 1] = 255;
+				d.data[i * 4 + 2] =   0;
+				d.data[i * 4 + 3] = 255;
+			}
+/*			// visualizacao extra
 			if (c == 0 && mask[i] == 0)
 			{
 				d.data[i * 4 + 0] = 255;
@@ -866,7 +912,9 @@ function setShadowFromGroundTruth(list, debug = false)
 				d.data[i * 4 + 2] = 255;
 				d.data[i * 4 + 3] = 255;
 			}
+*/
 		}
+		//ctx2.drawImage(rend.domElement, padw, padh, w - padw * 2, h - padh * 2, (k % grid) * sqr, Math.floor(k / grid) * sqr, sqr, sqr); // desenha os candidatos
 		ctx2.putImageData(d, (k % grid) * sqr, Math.floor(k / grid) * sqr, 0, 0, sqr, sqr);
 //		console.log(str);
 		if (c00 == 0)
@@ -887,6 +935,9 @@ function setShadowFromGroundTruth(list, debug = false)
 			mv = val;
 			mi = k;
 		}
+
+		listDebug += p1.x.toFixed(3) + " " + p1.y.toFixed(3) + " " + p1.z.toFixed(3) + " " + p2.x.toFixed(3) + " " + p2.y.toFixed(3) + " " + p2.z.toFixed(3) + " " + c00 + " " + c01 + " " + c10 + " " + c11 + " " + val + "\n";
+
 /*
 		if (pre > mpre)
 		{
@@ -907,14 +958,26 @@ function setShadowFromGroundTruth(list, debug = false)
 */
 	}
 
+	listDebug += "\n===================================================================================================\n\n"
+	listDebug += "BEST INITIAL VALUE\n\n"
+	listDebug += "===================================================================================================\n\n"
+	listDebug += mv + "\n";
+	console.log(listDebug);
+
+	// imprime os candidatos
+	var link = document.getElementById('exportLink');
+	link.setAttribute('download', 'test.png');
+	link.setAttribute('href', canvas2.toDataURL("image/png").replace("image/png", "image/octet-stream"));
+	link.click();
+
 	// ordena a lista para a 2a fase do metodo (experimental)
 	candidates.sort(function(a, b)
 	{
 		return b[0] - a[0];
 	});
-	var start = Math.round(candidates.length * 0.1);
-	var end   = candidates.length - start;
-	candidates.splice(start, end);
+	var ini = Math.round(candidates.length * 0.1);
+	var end = candidates.length - ini;
+	candidates.splice(ini, end);
 	candidates.sort(function(a, b)
 	{
 		return a[1] - b[1];
@@ -923,12 +986,17 @@ function setShadowFromGroundTruth(list, debug = false)
 	k = mi; // método 1: união / interseção
 	//k = candidates[0][3]; // método 2: ordena por maior interseção, guarda os 10% melhores, reordena por menor diferença entre união e interseção
 
-//	light.position.set(v3[k][2].x, v3[k][2].y, v3[k][2].z);
+	light.position.set(v3[k][2].x, v3[k][2].y, v3[k][2].z);
 	emptyObj.position.set(v3[k][1].x, v3[k][1].y, v3[k][1].z);
 
+	console.log(mv.toFixed(5));
+	console.log(v3[k]);
+//	done = true;
+//	return;
+
 	var v5 = v3[k][2].clone().sub(v3[k][1]).normalize();
-	var alpha = Math.PI / 8;
-	var v6 = findBestInSphere(mv, mask, v3[k][1], v5, alpha).multiplyScalar(3).add(v3[k][1]);
+	var alpha = Math.PI / 32;
+	var v6 = findBestInSphere(mv, mask, v3[k][1], v5, alpha).multiplyScalar(5).add(v3[k][1]);
 	light.position.set(v6.x, v6.y, v6.z);
 
 	if (debug)
@@ -946,7 +1014,7 @@ function setShadowFromGroundTruth(list, debug = false)
 			for (var j = 0; j < Math.PI * 2; j += sj)
 			{
 				v8.applyAxisAngle(v5, sj);
-				vl.push([v8.clone().multiplyScalar(3).add(v3[k][1]), i * Math.cos(j), i * Math.sin(j), 0]);
+				vl.push([v8.clone().multiplyScalar(5).add(v3[k][1]), i * Math.cos(j), i * Math.sin(j), 0]);
 			}
 		}
 		var minVal = 1;
@@ -978,7 +1046,7 @@ function setShadowFromGroundTruth(list, debug = false)
 			var d   = ctx.getImageData(0, 0, 256, 256);
 			for (var j = 0; j < 65536; j++)
 			{
-				var c = (d.data[j * 4] > 250) ? 1 : 0;
+				var c = (d.data[j * 4] == 255) ? 1 : 0;
 				if (c == 0 && mask[j] == 0)
 					c00++;
 				else if (c == 0 && mask[j] == 1)
@@ -999,29 +1067,36 @@ function setShadowFromGroundTruth(list, debug = false)
 			if (maxVal < val)
 				maxVal = val;
 		}
-		canvas2.width  = 512;
+		canvas2.width  = 640;
 		canvas2.height = 512;
 		ctx2 = canvas2.getContext("2d", true, false, "srgb", true);
 		ctx2.fillStyle = "black";
 		ctx2.fillRect(0, 0, size, size);
-		var m = mv;
-		if (m > maxVal)
-			m = minVal;
 		for (var i = 0; i < vl.length; i++)
 		{
-			if (vl[i][3] < m)
-				ctx2.fillStyle = "#" + Math.floor(255 * (vl[i][3] - minVal) / (m - minVal)).toString(16) + "ff00";
-			else
-				ctx2.fillStyle = "#ff" + Math.floor(255 - 255 * (vl[i][3] - m) / (maxVal - m)).toString(16) + "00";
-//			ctx2.fillStyle = "#ffffff";
+			ctx2.fillStyle = colorScale(vl[i][3], minVal, maxVal);
 			ctx2.fillRect(vl[i][1] * 240 + 256, vl[i][2] * 240 + 256, 4, 4);
 		}
-		console.log(((100 - 100 * maxVal / mv) * -1).toFixed(3));
+		for (var i = 62; i <= 450; i++)
+		{
+			ctx2.fillStyle = colorScale(i, 62, 450);
+			ctx2.fillRect(550, 512 - i, 20, 1);
+		}
+		ctx2.font = "bolder 15px Arial"
+		ctx2.fillStyle = "red";
+		ctx2.fillText(maxVal.toFixed(3), 550,  32);
+		ctx2.fillStyle = "blue";
+		ctx2.fillText(minVal.toFixed(3), 550, 480);
+		ctx2.fillStyle = colorScale(mv, minVal, maxVal);
+		ctx2.fillText(mv.toFixed(3), 580, 512 - 450 * ((mv - minVal) / (maxVal - minVal)));
+		ctx2.fillText("chute",       580, 532 - 450 * ((mv - minVal) / (maxVal - minVal)));
+		ctx2.fillText("inicial",     580, 552 - 450 * ((mv - minVal) / (maxVal - minVal)));
+//		console.log(((100 - 100 * maxVal / mv) * -1).toFixed(3));
 
 		light.position.set(v6.x, v6.y, v6.z);
 
-		// imprime os candidatos
-		var link = document.getElementById('exportLink');
+		// imprime o grafico
+		//var link = document.getElementById('exportLink');
 		link.setAttribute('download', 'test.png');
 		link.setAttribute('href', canvas2.toDataURL("image/png").replace("image/png", "image/octet-stream"));
 		link.click();
@@ -1055,6 +1130,46 @@ function setShadowFromGroundTruth(list, debug = false)
 	}
 	//console.log(v3[mi][4], v3[candidates[0][3]][4]);
 	done = true;
+}
+
+
+function colorScale(val, minVal, maxVal)
+{
+	var r, g, b, color = (val - minVal) / (maxVal - minVal);
+	if (color <= 0.25)
+	{
+		r =   0;
+		g = 255 * color * 4;
+		b = 255;
+	}
+	else if (color <= 0.5)
+	{
+		r =   0;
+		g = 255;
+		b = 255 - 255 * (color - 0.25) * 4;
+	}
+	else if (color <= 0.75)
+	{
+		r = 255 * (color - 0.5) * 4;
+		g = 255;
+		b =   0;
+	}
+	else
+	{
+		r = 255;
+		g = 255 - 255 * (color - 0.75) * 4;
+		b =   0;
+	}
+	r = Math.floor(r).toString(16);
+	g = Math.floor(g).toString(16);
+	b = Math.floor(b).toString(16);
+	if (r.length == 1)
+		r = "0" + r;
+	if (g.length == 1)
+		g = "0" + g;
+	if (b.length == 1)
+		b = "0" + b;
+	return "#" + r + g + b;
 }
 
 
@@ -1145,7 +1260,7 @@ function findBestInSphere(best, mask, ori, v0, alpha, beta = Math.PI, p0 = v0.cl
 */
 	for (var i = 0; i < 4; i++)
 	{
-		var v1 = (p[i].clone().multiplyScalar(3)).add(ori);
+		var v1 = (p[i].clone().multiplyScalar(5)).add(ori);
 		light.position.set(v1.x, v1.y, v1.z);
 		emptyObj.position.set(ori.x, ori.y, ori.z);
 		rend.render(mainScene2, camera);
@@ -1184,7 +1299,7 @@ function findBestInSphere(best, mask, ori, v0, alpha, beta = Math.PI, p0 = v0.cl
 	// condicao de parada: atingiu o maximo de recursoes (100)
 	if (maxRec == 0 || (prev > best && list[0][1] <= prev))
 	{
-		console.log(((100 - 100 * Math.max(prev, list[0][1]) / best) * -1).toFixed(3));
+		console.log(((100 - 100 * Math.max(prev, list[0][1]) / best) * -1).toFixed(3), list[0][1].toFixed(5), best.toFixed(5));
 		return p0;
 	}
 
@@ -1373,6 +1488,7 @@ function update()
 
 function render()
 {
+//	if (!start || done)
 //	renderer1.render(mainScene1, camera);
 	renderer.render(mainScene2, camera);
 //	renderer3.render(mainScene3, camera);
