@@ -648,6 +648,8 @@ function setScene(id)
 function setShadowFromGroundTruth(list, debug = false)
 {
 	start = true;
+	var origOpacity = shadowPlane.material.opacity;
+	shadowPlane.material.opacity = 1;
 	console.log("start");
 
 	var v1     = [];
@@ -1129,6 +1131,7 @@ function setShadowFromGroundTruth(list, debug = false)
 		//console.log(str);
 	}
 	//console.log(v3[mi][4], v3[candidates[0][3]][4]);
+	shadowPlane.material.opacity = origOpacity;
 	done = true;
 }
 
