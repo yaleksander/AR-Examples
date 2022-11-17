@@ -1079,6 +1079,17 @@ function setShadowFromGroundTruth(list, debug = false)
 			ctx2.fillStyle = colorScale(vl[i][3], minVal, maxVal);
 			ctx2.fillRect(vl[i][1] * 240 + 256, vl[i][2] * 240 + 256, 4, 4);
 		}
+		ctx2.fillStyle = "white";
+		ctx2.lineWidth = 6;
+		for (var i = 0; i < vl.length; i++)
+		{
+			if (vl[i][3] == mv)
+			{
+				ctx2.beginPath();
+				ctx2.arc(vl[i][1] * 240 + 258, vl[i][2] * 240 + 258, 3);
+				ctx2.stroke();
+			}
+		}
 		for (var i = 62; i <= 450; i++)
 		{
 			ctx2.fillStyle = colorScale(i, 62, 450);
