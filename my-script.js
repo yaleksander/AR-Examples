@@ -1079,12 +1079,12 @@ function setShadowFromGroundTruth(list, debug = false)
 			ctx2.fillStyle = colorScale(vl[i][3], minVal, maxVal);
 			ctx2.fillRect(vl[i][1] * 240 + 256, vl[i][2] * 240 + 256, 4, 4);
 		}
-		ctx2.lineWidth = 6;
 		for (var i = 0; i < vl.length; i++)
 		{
 			if (vl[i][3] == mv)
 			{
 				ctx2.beginPath();
+				ctx2.lineWidth = 6;
 				ctx2.strokeStyle = "#ff73a4";
 				ctx2.arc(vl[i][1] * 240 + 258, vl[i][2] * 240 + 258, 3, 0, Math.PI * 2);
 				ctx2.stroke();
@@ -1092,8 +1092,14 @@ function setShadowFromGroundTruth(list, debug = false)
 			else if (vl[i][3] == maxVal)
 			{
 				ctx2.beginPath();
-				ctx2.strokeStyle = "#ff00ff";
+				ctx2.lineWidth = 6;
+				ctx2.strokeStyle = "#ff0000";
 				ctx2.arc(vl[i][1] * 240 + 258, vl[i][2] * 240 + 258, 3, 0, Math.PI * 2);
+				ctx2.stroke();
+				ctx2.beginPath();
+				ctx2.lineWidth = 2;
+				ctx2.strokeStyle = "#ffffff";
+				ctx2.arc(vl[i][1] * 240 + 258, vl[i][2] * 240 + 258, 6, 0, Math.PI * 2);
 				ctx2.stroke();
 			}
 		}
