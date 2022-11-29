@@ -828,7 +828,7 @@ function setShadowFromGroundTruth(list, debug = false)
 	while (Math.pow(++grid, 2) < v3.length);
 	var size = Math.max(grid * 256, 4096);
 	var sqr = Math.floor(size / grid);
-	size = sqr * grid;
+	size = Math.min(sqr * grid, 16384); // limite do chrome (area: 268.435.456 pixels) para o canvas. O limite do firefox é maior, entao esse valor serve para ambos
 	var canvas2 = document.createElement("canvas");
 	canvas2.width  = size;
 	canvas2.height = size;
@@ -848,145 +848,16 @@ function setShadowFromGroundTruth(list, debug = false)
 
 	for (k = 0; k < v3.length; k++)
 	{
-		var p1 = v3[k][1].clone();
-		var p2 = v3[k][2].clone();
-		console.log("/ ".concat(v3.length));
-		light.position.set(p2.x, p2.y, p2.z);
-		emptyObj.position.set(p1.x, p1.y, p1.z);
-		rend.render(mainScene2, camera);
-		ctx.fillRect(0, 0, 256, 256);
-		ctx.drawImage(rend.domElement, padw, padh, w - padw * 2, h - padh * 2, 0, 0, 256, 256);
-		var c00 = 0;
-		var c01 = 0;
-		var c10 = 0;
-		var c11 = 0;
-		var d   = ctx.getImageData(0, 0, 256, 256);
-//		var str = "";
-		for (var i = 0; i < 65536; i++)
-		{
-//			console.log(d[i * 4]);
-			var c = (d.data[i * 4] == 255) ? 1 : 0;
-//			if (i % 256 == 0 && i > 0)
-//				str += "\n";
-//			str += (mask[i] == 0) ? " " : ".";
-			if (c == 0 && mask[i] == 0)
-				c00++;
-			else if (c == 0 && mask[i] == 1)
-				c01++;
-			else if (c == 1 && mask[i] == 0)
-				c10++;
-			else
-				c11++;
-
-			if (c == 0)
-			{
-				d.data[i * 4 + 0] =   0;
-				d.data[i * 4 + 1] = 255;
-				d.data[i * 4 + 2] =   0;
-				d.data[i * 4 + 3] = 255;
-			}
-/*			// visualizacao extra
-			if (c == 0 && mask[i] == 0)
-			{
-				d.data[i * 4 + 0] = 255;
-				d.data[i * 4 + 1] =   0;
-				d.data[i * 4 + 2] =   0;
-				d.data[i * 4 + 3] = 255;
-			}
-			else if (c == 0 && mask[i] == 1)
-			{
-				d.data[i * 4 + 0] =   0;
-				d.data[i * 4 + 1] = 255;
-				d.data[i * 4 + 2] =   0;
-				d.data[i * 4 + 3] = 255;
-			}
-			else if (c == 1 && mask[i] == 0)
-			{
-				d.data[i * 4 + 0] =   0;
-				d.data[i * 4 + 1] =   0;
-				d.data[i * 4 + 2] = 255;
-				d.data[i * 4 + 3] = 255;
-			}
-			else
-			{
-				d.data[i * 4 + 0] = 255;
-				d.data[i * 4 + 1] = 255;
-				d.data[i * 4 + 2] = 255;
-				d.data[i * 4 + 3] = 255;
-			}
-*/
-		}
-		//ctx2.drawImage(rend.domElement, padw, padh, w - padw * 2, h - padh * 2, (k % grid) * sqr, Math.floor(k / grid) * sqr, sqr, sqr); // desenha os candidatos
-		ctx2.putImageData(d, (k % grid) * sqr, Math.floor(k / grid) * sqr, 0, 0, sqr, sqr);
-//		console.log(str);
-		if (c00 == 0)
-			continue;
-		// https://machinelearningmastery.com/precision-recall-and-f-measure-for-imbalanced-classification/#:~:text=Precision%20quantifies%20the%20number%20of,and%20recall%20in%20one%20number
-		var uni = c00 + c01 + c10;
-		var ins = c00;
-//		var pre = parseFloat(c00)           / parseFloat(c00 + c01);
-//		var rec = parseFloat(c00)           / parseFloat(c00 + c10);
-//		var fme = parseFloat(2 * pre * rec) / parseFloat(pre + rec);
-//		var val = 1 * c00 - (c01 + c10);
-//		var val = 65536 - (c01 + c10);
-		var val = parseFloat(ins) / uni;
-//		console.log(c00, c01, c10, c11, uni, ins, 65536 - val, (1 - (parseFloat(val) / 65536)).toFixed(2), pre.toFixed(2), rec.toFixed(2), fme.toFixed(2));
-		candidates.push([ins, uni - ins, val, k]);
+		var val = getRenderValue(v3[k][1], v3[k][2], mask);
+//		candidates.push([ins, uni - ins, val, k]);
 		if (val > mv)
 		{
 			mv = val;
 			mi = k;
 		}
-
-		listDebug += p1.x.toFixed(3) + " " + p1.y.toFixed(3) + " " + p1.z.toFixed(3) + " " + p2.x.toFixed(3) + " " + p2.y.toFixed(3) + " " + p2.z.toFixed(3) + " " + c00 + " " + c01 + " " + c10 + " " + c11 + " " + val + "\n";
-
-/*
-		if (pre > mpre)
-		{
-			mpre = pre;
-			kpre = k;
-		}
-		if (rec > mrec)
-		{
-			mrec = rec;
-			krec = k;
-		}
-		if (fme > mf)
-		{
-			mf = fme;
-			kf = k;
-		}
-		//console.log(parseFloat(val) / 65536.0, fme, uni, ins, pre, rec, c00, c01, c10, c11);
-*/
 	}
 
-	listDebug += "\n===================================================================================================\n\n"
-	listDebug += "BEST INITIAL VALUE\n\n"
-	listDebug += "===================================================================================================\n\n"
-	listDebug += mv + "\n";
-	console.log(listDebug);
-
-	// imprime os candidatos
-	var link = document.getElementById('exportLink');
-	link.setAttribute('download', 'test.png');
-	link.setAttribute('href', canvas2.toDataURL("image/png").replace("image/png", "image/octet-stream"));
-	link.click();
-
-	// ordena a lista para a 2a fase do metodo (experimental)
-	candidates.sort(function(a, b)
-	{
-		return b[0] - a[0];
-	});
-	var ini = Math.round(candidates.length * 0.1);
-	var end = candidates.length - ini;
-	candidates.splice(ini, end);
-	candidates.sort(function(a, b)
-	{
-		return a[1] - b[1];
-	});
-
-	k = mi; // método 1: união / interseção
-	//k = candidates[0][3]; // método 2: ordena por maior interseção, guarda os 10% melhores, reordena por menor diferença entre união e interseção
+	k = mi;
 
 	light.position.set(v3[k][2].x, v3[k][2].y, v3[k][2].z);
 	emptyObj.position.set(v3[k][1].x, v3[k][1].y, v3[k][1].z);
@@ -997,7 +868,7 @@ function setShadowFromGroundTruth(list, debug = false)
 //	return;
 
 	var v5 = v3[k][2].clone().sub(v3[k][1]).normalize();
-	var alpha = Math.PI / 32;
+	var alpha = 5 * Math.PI / 180;
 	var v6 = findBestInSphere(mv, mask, v3[k][1], v5, alpha).multiplyScalar(5).add(v3[k][1]);
 	light.position.set(v6.x, v6.y, v6.z);
 
@@ -1036,33 +907,7 @@ function setShadowFromGroundTruth(list, debug = false)
 		ctx.fillStyle = "white";*/
 		for (var i = 0; i < vl.length; i++)
 		{
-			light.position.set(vl[i][0].x, vl[i][0].y, vl[i][0].z);
-			emptyObj.position.set(v3[k][1].x, v3[k][1].y, v3[k][1].z);
-			rend.render(mainScene2, camera);
-			ctx.fillRect(0, 0, 256, 256);
-			ctx.drawImage(rend.domElement, padw, padh, w - padw * 2, h - padh * 2, 0, 0, 256, 256);
-			var c00 = 0;
-			var c01 = 0;
-			var c10 = 0;
-			var c11 = 0;
-			var d   = ctx.getImageData(0, 0, 256, 256);
-			for (var j = 0; j < 65536; j++)
-			{
-				var c = (d.data[j * 4] == 255) ? 1 : 0;
-				if (c == 0 && mask[j] == 0)
-					c00++;
-				else if (c == 0 && mask[j] == 1)
-					c01++;
-				else if (c == 1 && mask[j] == 0)
-					c10++;
-				else
-					c11++;
-			}
-			var val = 0;
-			var uni = c00 + c01 + c10;
-			var ins = c00;
-			if (uni > 0)
-				val = parseFloat(ins) / uni;
+			var val = getRenderValue(v3[k][1], vl[i][0], mask);
 			vl[i][3] = val;
 			if (minVal > val)
 				minVal = val;
@@ -1122,7 +967,7 @@ function setShadowFromGroundTruth(list, debug = false)
 		light.position.set(v6.x, v6.y, v6.z);
 
 		// imprime o grafico
-		//var link = document.getElementById('exportLink');
+		var link = document.getElementById('exportLink');
 		link.setAttribute('download', 'test.png');
 		link.setAttribute('href', canvas2.toDataURL("image/png").replace("image/png", "image/octet-stream"));
 		link.click();
@@ -1236,7 +1081,7 @@ function shrinkList(list, t)
 
 
 //
-function findBestInSphere(best, mask, ori, v0, alpha, beta = Math.PI, p0 = v0.clone(), prev = 0, maxRec = 400, first = true)
+function findBestInSphere(best, mask, ori, v0, alpha, beta = Math.PI, p0 = v0.clone(), prev = 0, maxRec = 100, first = true)
 {
 	var p = [];
 	if (first)
@@ -1264,7 +1109,47 @@ function findBestInSphere(best, mask, ori, v0, alpha, beta = Math.PI, p0 = v0.cl
 	}
 
 	var list = [];
+	for (var i = 0; i < 4; i++)
+	{
+		var v = [];
+		var v1 = (p[i].clone().multiplyScalar(5)).add(ori);
+		var axis = v0.clone().cross(v1).normalize();
+		for (var i = 0; i < 4; i++)
+			v.push(v1.clone());
+		v[0].applyAxisAngle(axis,  alpha / 2);
+		v[1].applyAxisAngle(axis,  alpha / 2);
+		v[2].applyAxisAngle(axis, -alpha / 2);
+		v[3].applyAxisAngle(axis, -alpha / 2);
+		v[0].applyAxisAngle(v0,   -beta  / 4);
+		v[1].applyAxisAngle(v0,    beta  / 4);
+		v[2].applyAxisAngle(v0,    beta  / 4);
+		v[3].applyAxisAngle(v0,   -beta  / 4);//02,13
+		getMidPoints(v, 0.001, 5);
 
+		var val = 0;
+		for (var j = 0; j < v.length; j++)
+			val += getRenderValue(ori, v[j], mask);
+		list.push([p[i], val, i]);
+	}
+	list.sort(function(a, b)
+	{
+		return b[1] - a[1]; // b - a: maior valor primeiro; a - b: menor valor primeiro
+	});
+
+	// condicao de parada: se nao houver candidato melhor que a recursao anterior E ja atingiu um candidato melhor que o original
+	// condicao de parada: atingiu o maximo de recursoes (100)
+	if (maxRec == 0)// || (prev > best && list[0][1] <= prev))
+	{
+		console.log(((100 - 100 * Math.max(prev, list[0][1]) / best) * -1).toFixed(3), list[0][1].toFixed(5), best.toFixed(5));
+		return p0;
+	}
+
+	return findBestInSphere(best, mask, ori, v0, alpha / 2, beta / 2, list[0][0], list[0][1], --maxRec, false);
+}
+
+
+function getRenderValue(v0, v1, mask)
+{
 	var canvas = document.createElement("canvas");
 	canvas.width  = 256;
 	canvas.height = 256;
@@ -1275,62 +1160,35 @@ function findBestInSphere(best, mask, ori, v0, alpha, beta = Math.PI, p0 = v0.cl
 	var h    = renderer.domElement.clientHeight;
 	var padw = (w > h) ? Math.floor((w - h) / 2.0) : 0;
 	var padh = (h > w) ? Math.floor((h - w) / 2.0) : 0;
-/*
-	var rend = new THREE.WebGLRenderer({
-		preserveDrawingBuffer: true,
-		antialias: true,
-		alpha: true
-	});
-	rend.setClearColor(new THREE.Color('white'), 0);
-	rend.setSize(w, h);
-	rend.shadowMap.enabled = true;
-*/
-	for (var i = 0; i < 4; i++)
-	{
-		var v1 = (p[i].clone().multiplyScalar(5)).add(ori);
-		light.position.set(v1.x, v1.y, v1.z);
-		emptyObj.position.set(ori.x, ori.y, ori.z);
-		rend.render(mainScene2, camera);
-		ctx.fillRect(0, 0, 256, 256);
-		ctx.drawImage(rend.domElement, padw, padh, w - padw * 2, h - padh * 2, 0, 0, 256, 256);
-		var c00 = 0;
-		var c01 = 0;
-		var c10 = 0;
-		var c11 = 0;
-		var d   = ctx.getImageData(0, 0, 256, 256);
-		for (var j = 0; j < 65536; j++)
-		{
-			var c = (d.data[j * 4] > 250) ? 1 : 0;
-			if (c == 0 && mask[j] == 0)
-				c00++;
-			else if (c == 0 && mask[j] == 1)
-				c01++;
-			else if (c == 1 && mask[j] == 0)
-				c10++;
-			else
-				c11++;
-		}
-		var val = 0;
-		var uni = c00 + c01 + c10;
-		var ins = c00;
-		if (uni > 0)
-			val = parseFloat(ins) / uni;
-		list.push([p[i], val, i]);
-	}
-	list.sort(function(a, b)
-	{
-		return b[1] - a[1]; // b - a: maior valor primeiro; a - b: menor valor primeiro
-	});
 
-	// condicao de parada: se nao houver candidato melhor que a recursao anterior E ja atingiu um candidato melhor que o original
-	// condicao de parada: atingiu o maximo de recursoes (100)
-	if (maxRec == 0 || (prev > best && list[0][1] <= prev))
+	light.position.set(v1.x, v1.y, v1.z);
+	emptyObj.position.set(v0.x, v0.y, v0.z);
+	rend.render(mainScene2, camera);
+	ctx.fillRect(0, 0, 256, 256);
+	ctx.drawImage(rend.domElement, padw, padh, w - padw * 2, h - padh * 2, 0, 0, 256, 256);
+	var c00 = 0;
+	var c01 = 0;
+	var c10 = 0;
+	var c11 = 0;
+	var d   = ctx.getImageData(0, 0, 256, 256);
+	for (var j = 0; j < 65536; j++)
 	{
-		console.log(((100 - 100 * Math.max(prev, list[0][1]) / best) * -1).toFixed(3), list[0][1].toFixed(5), best.toFixed(5));
-		return p0;
+		var c = (d.data[j * 4] == 255) ? 1 : 0;
+		if (c == 0 && mask[j] == 0)
+			c00++;
+		else if (c == 0 && mask[j] == 1)
+			c01++;
+		else if (c == 1 && mask[j] == 0)
+			c10++;
+		else
+			c11++;
 	}
-
-	return findBestInSphere(best, mask, ori, v0, alpha / 2, beta / 2, list[0][0], list[0][1], --maxRec, false);
+	var val = 0;
+	var uni = c00 + c01 + c10;
+	var ins = c00;
+	if (uni > 0)
+		val = parseFloat(ins) / uni;
+	return val;
 }
 
 
