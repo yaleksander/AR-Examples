@@ -659,7 +659,6 @@ function setShadowFromGroundTruth(list, debug = false)
 	var vDebug = [];
 
 	// adquire conjunto de pontos a partir dos vertices do objeto virtual
-
 	var position = vObj.geometry.attributes.position;
 	for (var i = 0; i < position.count; i++)
 		v1.push(new THREE.Vector3().fromBufferAttribute(position, i));
@@ -696,21 +695,11 @@ function setShadowFromGroundTruth(list, debug = false)
 
 	console.log("get floor points");
 
-	var listDebug = "===================================================================================================\n\n"
-	listDebug += "FLOOR POINTS\n\n"
-	listDebug += "===================================================================================================\n\n"
-
 	var w    = renderer.domElement.clientWidth;
 	var h    = renderer.domElement.clientHeight;
 	var padw = (w > h) ? Math.floor((w - h) / 2.0) : 0;
 	var padh = (h > w) ? Math.floor((h - w) / 2.0) : 0;
 	var m    = ((w > h) ? h : w) / 256.0;
-
-	listDebug += "W    = " + w + "\n";
-	listDebug += "H    = " + h + "\n";
-	listDebug += "PADW = " + padw + "\n";
-	listDebug += "PADH = " + padh + "\n";
-	listDebug += "M    = " + m + "\n\n";
 
 	// adquire conjunto de pontos a partir dos pontos 2d da sombra
 	var k = 0;
@@ -721,19 +710,11 @@ function setShadowFromGroundTruth(list, debug = false)
 		mouse.x  =  (x / w) * 2 - 1;
 		mouse.y  = -(y / h) * 2 + 1;
 
-		listDebug += x.toFixed(3) + " " + y.toFixed(3) + " " + mouse.x.toFixed(3) + " " + mouse.y.toFixed(3) + "\n";
-
 		ray.setFromCamera(mouse, camera);
 		var i = ray.intersectObject(shadowPlane);
 		if (i.length > 0)
 			v2.push(new THREE.Vector3((i[0].uv.x - 0.5) * sPlaneSize + shadowPlane.position.x, shadowPlane.position.y, (0.5 - i[0].uv.y) * sPlaneSize + shadowPlane.position.z));
 	}
-
-	listDebug += "\n===================================================================================================\n\n"
-	listDebug += "V2 BEFORE SHRINK\n\n"
-	listDebug += "===================================================================================================\n\n"
-	for (var i = 0; i < v2.length; i++)
-		listDebug += v2[i].x.toFixed(3) + " " + v2[i].y.toFixed(3) + " " + v2[i].z.toFixed(3) + "\n";
 
 	console.log("shrink list");
 
@@ -745,13 +726,6 @@ function setShadowFromGroundTruth(list, debug = false)
 			if (v2[i].distanceTo(v2[j]) < t)
 				v2.splice(j--, 1);
 	console.log(v2.length);
-
-	listDebug += "\n===================================================================================================\n\n"
-	listDebug += "V2 AFTER SHRINK\n\n"
-	listDebug += "===================================================================================================\n\n"
-	for (var i = 0; i < v2.length; i++)
-		listDebug += v2[i].x.toFixed(3) + " " + v2[i].y.toFixed(3) + " " + v2[i].z.toFixed(3) + "\n";
-	//console.log(listDebug);
 
 	if (debug)
 	{
@@ -798,7 +772,6 @@ function setShadowFromGroundTruth(list, debug = false)
 
 	console.log("compare");
 
-//	console.log(list);
 	var mask = [];
 	for (var i = 0; i < 65536; i++)
 		mask[i] = 1;
@@ -813,12 +786,7 @@ function setShadowFromGroundTruth(list, debug = false)
 
 	rend = new THREE.WebGLRenderer({
 		preserveDrawingBuffer: true,
-		antialias: true,/*
-		alpha: false,
-		powerPreference: "high-performance",
-		failIfMajorPerformanceCaveat: true,
-		precision: "highp",*/
-		//logarithmicDepthBuffer: true
+		antialias: true
 	});
 	rend.setClearColor(new THREE.Color('white'), 0);
 	rend.setSize(w, h);
@@ -840,16 +808,10 @@ function setShadowFromGroundTruth(list, debug = false)
 	light.target = emptyObj;
 
 	var mi = 0, mv = 0;
-	var candidates = [];
-
-	listDebug += "\n===================================================================================================\n\n"
-	listDebug += "IOU VALUES\n\n"
-	listDebug += "===================================================================================================\n\n"
 
 	for (k = 0; k < v3.length; k++)
 	{
 		var val = getRenderValue(v3[k][1], v3[k][2], mask);
-//		candidates.push([ins, uni - ins, val, k]);
 		if (val > mv)
 		{
 			mv = val;
@@ -862,57 +824,52 @@ function setShadowFromGroundTruth(list, debug = false)
 	light.position.set(v3[k][2].x, v3[k][2].y, v3[k][2].z);
 	emptyObj.position.set(v3[k][1].x, v3[k][1].y, v3[k][1].z);
 
-	console.log(mv.toFixed(5));
-	console.log(v3[k]);
-//	done = true;
-//	return;
-
 	var v5 = v3[k][2].clone().sub(v3[k][1]).normalize();
 	var alpha = 5 * Math.PI / 180;
-	var v6 = findBestInSphere(mv, mask, v3[k][1], v5, alpha).multiplyScalar(5).add(v3[k][1]);
+
+	// cria o mapa
+	console.log("map");
+	var ni =  50;
+	var nj = 360;
+	var si = alpha / ni;
+	var sj = Math.PI * 2 / nj;
+	var v7 = new THREE.Vector3(0, 1, 0).cross(v5);
+	var v8 = v5.clone();
+	var vl = [];
+	for (var i = 0; i < ni; i++)
+	{
+		v8.applyAxisAngle(v7, si);
+		vl.push([Math.PI * (Math.pow((i + 1) * si / ni, 2) - Math.pow(i * si / ni, 2)) * (sj / nj) * 1000000000]);
+		for (var j = 0; j < nj; j++)
+		{
+			v8.applyAxisAngle(v5, sj);
+			var v9 = v8.clone().multiplyScalar(5).add(v3[k][1]);
+			vl[i].push([v9, getRenderValue(v3[k][1], v9, mask), (i / ni) * Math.cos(j * sj), (i / ni) * Math.sin(j * sj) * -1]);
+		}
+	}
+
+	// encontra o melhor ponto da calota esferica
+	console.log("cap");
+	var res = findBestInSphere(mv, mask, vl, si, sj, ni, nj, v3[k][1], v5, alpha);
+	var v6 = res[0].multiplyScalar(5).add(v3[k][1]);
 	light.position.set(v6.x, v6.y, v6.z);
 
+	// desenha o grafico
 	if (debug)
 	{
-		// 2022-11-07
-		var sub = 7;
-		var si = 1.0 / Math.pow(2, sub - 2);
-		var sj = Math.PI * 2 / Math.pow(2, sub);
-		var v7 = new THREE.Vector3(0, 1, 0).cross(v5);
-		var v8 = v5.clone();
-		var vl = [];
-		for (var i = si; i < 1; i += si)
-		{
-			v8.applyAxisAngle(v7, si * alpha);
-			for (var j = 0; j < Math.PI * 2; j += sj)
-			{
-				v8.applyAxisAngle(v5, sj);
-				vl.push([v8.clone().multiplyScalar(5).add(v3[k][1]), i * Math.cos(j), i * Math.sin(j), 0]);
-			}
-		}
+		console.log("draw");
 		var minVal = 1;
 		var maxVal = 0;
-		/*var rend = new THREE.WebGLRenderer({
-			preserveDrawingBuffer: true,
-			antialias: true,
-			alpha: true
-		});
-		rend.setClearColor(new THREE.Color('white'), 0);
-		rend.setSize(w, h);
-		rend.shadowMap.enabled = true;
-		var canvas = document.createElement("canvas");
-		canvas.width  = 256;
-		canvas.height = 256;
-		var ctx = canvas.getContext("2d");
-		ctx.fillStyle = "white";*/
 		for (var i = 0; i < vl.length; i++)
 		{
-			var val = getRenderValue(v3[k][1], vl[i][0], mask);
-			vl[i][3] = val;
-			if (minVal > val)
-				minVal = val;
-			if (maxVal < val)
-				maxVal = val;
+			for (var j = 1; j < vl[i].length; j++)
+			{
+				var val = vl[i][j][1];
+				if (minVal > val)
+					minVal = val;
+				if (maxVal < val)
+					maxVal = val;
+			}
 		}
 		canvas2.width  = 640;
 		canvas2.height = 512;
@@ -921,33 +878,46 @@ function setShadowFromGroundTruth(list, debug = false)
 		ctx2.fillRect(0, 0, size, size);
 		for (var i = 0; i < vl.length; i++)
 		{
-			ctx2.fillStyle = colorScale(vl[i][3], minVal, maxVal);
-			ctx2.fillRect(vl[i][1] * 240 + 256, vl[i][2] * 240 + 256, 4, 4);
+			for (var j = 1; j < vl[i].length; j++)
+			{
+				{
+					ctx2.fillStyle = colorScale(vl[i][j][1], minVal, maxVal);
+					ctx2.fillRect(vl[i][j][2] * 240 + 256, vl[i][j][3] * 240 + 256, 4, 4);
+				}
+			}
+		}
+		for (var i = 0; i < res[3].length; i++)
+		{
+			ctx2.beginPath();
+			ctx2.lineWidth = 6;
+			ctx2.strokeStyle = "#ff73a4";
+			ctx2.arc(vl[res[3][i][0]][res[3][i][1]][2] * 240 + 258, vl[res[3][i][0]][res[3][i][1]][3] * 240 + 258, 3, 0, Math.PI * 2);
+			ctx2.stroke();
 		}
 		for (var i = 0; i < vl.length; i++)
 		{
-			if (vl[i][3] == mv)
+			for (var j = 1; j < vl[i].length; j++)
 			{
-				ctx2.beginPath();
-				ctx2.lineWidth = 6;
-				ctx2.strokeStyle = "#ff73a4";
-				ctx2.arc(vl[i][1] * 240 + 258, vl[i][2] * 240 + 258, 3, 0, Math.PI * 2);
-				ctx2.stroke();
-			}
-			else if (vl[i][3] == maxVal)
-			{
-				ctx2.beginPath();
-				ctx2.lineWidth = 6;
-				ctx2.strokeStyle = "#ff0000";
-				ctx2.arc(vl[i][1] * 240 + 258, vl[i][2] * 240 + 258, 3, 0, Math.PI * 2);
-				ctx2.stroke();
-				ctx2.beginPath();
-				ctx2.lineWidth = 2;
-				ctx2.strokeStyle = "#ffffff";
-				ctx2.arc(vl[i][1] * 240 + 258, vl[i][2] * 240 + 258, 6, 0, Math.PI * 2);
-				ctx2.stroke();
+				if (vl[i][j][1] == maxVal)
+				{
+					ctx2.beginPath();
+					ctx2.lineWidth = 6;
+					ctx2.strokeStyle = "#ff0000";
+					ctx2.arc(vl[i][j][2] * 240 + 258, vl[i][j][3] * 240 + 258, 3, 0, Math.PI * 2);
+					ctx2.stroke();
+					ctx2.beginPath();
+					ctx2.lineWidth = 2;
+					ctx2.strokeStyle = "#ffffff";
+					ctx2.arc(vl[i][j][2] * 240 + 258, vl[i][j][3] * 240 + 258, 6, 0, Math.PI * 2);
+					ctx2.stroke();
+				}
 			}
 		}
+		ctx2.beginPath();
+		ctx2.lineWidth = 6;
+		ctx2.strokeStyle = "#ffffff";
+		ctx2.arc(vl[res[1]][res[2]][2] * 240 + 258, vl[res[1]][res[2]][3] * 240 + 258, 3, 0, Math.PI * 2);
+		ctx2.stroke();
 		for (var i = 62; i <= 450; i++)
 		{
 			ctx2.fillStyle = colorScale(i, 62, 450);
@@ -958,11 +928,10 @@ function setShadowFromGroundTruth(list, debug = false)
 		ctx2.fillText(maxVal.toFixed(3), 550,  32);
 		ctx2.fillStyle = "blue";
 		ctx2.fillText(minVal.toFixed(3), 550, 480);
-		ctx2.fillStyle = "#ff73a4";//colorScale(mv, minVal, maxVal);
+		ctx2.fillStyle = /*"#ff73a4";*/colorScale(mv, minVal, maxVal);
 		ctx2.fillText(mv.toFixed(3), 580, 512 - 450 * ((mv - minVal) / (maxVal - minVal)));
 		ctx2.fillText("chute",       580, 532 - 450 * ((mv - minVal) / (maxVal - minVal)));
 		ctx2.fillText("inicial",     580, 552 - 450 * ((mv - minVal) / (maxVal - minVal)));
-//		console.log(((100 - 100 * maxVal / mv) * -1).toFixed(3));
 
 		light.position.set(v6.x, v6.y, v6.z);
 
@@ -990,16 +959,7 @@ function setShadowFromGroundTruth(list, debug = false)
 		vObj.material.transparent = true;
 		for (var i = 0; i < vDebug.length; i++)
 			scene2.add(vDebug[i]);
-		var str = "";
-		for (var i = 0; i < 65536; i++)
-		{
-			if (i % 256 == 0 && i > 0)
-				str += "\n";
-			str += (mask[i] == 0) ? " " : ".";
-		}
-		//console.log(str);
 	}
-	//console.log(v3[mi][4], v3[candidates[0][3]][4]);
 	shadowPlane.material.opacity = origOpacity;
 	done = true;
 }
@@ -1081,7 +1041,7 @@ function shrinkList(list, t)
 
 
 //
-function findBestInSphere(best, mask, ori, v0, alpha, beta = Math.PI, p0 = v0.clone(), prev = 0, maxRec = 100, first = true)
+function findBestInSphere(best, mask, map, ii, jj, ni, nj, ori, v0, alpha, beta = Math.PI, theta = 0, p0 = v0.clone(), prev = 0, maxRec = 150, first = true, path = [])
 {
 	var p = [];
 	if (first)
@@ -1090,7 +1050,7 @@ function findBestInSphere(best, mask, ori, v0, alpha, beta = Math.PI, p0 = v0.cl
 		for (var i = 0; i < 4; i++)
 		{
 			p.push(p0.clone().applyAxisAngle(axis, alpha / 2));
-			p[i].applyAxisAngle(v0, i * Math.PI / 2 + Math.PI * 3 / 4);
+			p[i].applyAxisAngle(v0, i * Math.PI / 2 + Math.PI / 4);
 		}
 	}
 	else
@@ -1099,52 +1059,107 @@ function findBestInSphere(best, mask, ori, v0, alpha, beta = Math.PI, p0 = v0.cl
 		for (var i = 0; i < 4; i++)
 			p.push(p0.clone());
 		p[0].applyAxisAngle(axis,  alpha / 2);
-		p[1].applyAxisAngle(axis,  alpha / 2);
+		p[1].applyAxisAngle(axis, -alpha / 2);
 		p[2].applyAxisAngle(axis, -alpha / 2);
-		p[3].applyAxisAngle(axis, -alpha / 2);
-		p[0].applyAxisAngle(v0,   -beta  / 4);
+		p[3].applyAxisAngle(axis,  alpha / 2);
+		p[0].applyAxisAngle(v0,    beta  / 4);
 		p[1].applyAxisAngle(v0,    beta  / 4);
-		p[2].applyAxisAngle(v0,    beta  / 4);
+		p[2].applyAxisAngle(v0,   -beta  / 4);
 		p[3].applyAxisAngle(v0,   -beta  / 4);
 	}
 
 	var list = [];
+	var r0, r1, t0, t1;
 	for (var i = 0; i < 4; i++)
 	{
-		var v = [];
-		var v1 = (p[i].clone().multiplyScalar(5)).add(ori);
-		var axis = v0.clone().cross(v1).normalize();
-		for (var i = 0; i < 4; i++)
-			v.push(v1.clone());
-		v[0].applyAxisAngle(axis,  alpha / 2);
-		v[1].applyAxisAngle(axis,  alpha / 2);
-		v[2].applyAxisAngle(axis, -alpha / 2);
-		v[3].applyAxisAngle(axis, -alpha / 2);
-		v[0].applyAxisAngle(v0,   -beta  / 4);
-		v[1].applyAxisAngle(v0,    beta  / 4);
-		v[2].applyAxisAngle(v0,    beta  / 4);
-		v[3].applyAxisAngle(v0,   -beta  / 4);//02,13
-		getMidPoints(v, 0.001, 5);
-
 		var val = 0;
-		for (var j = 0; j < v.length; j++)
-			val += getRenderValue(ori, v[j], mask);
-		list.push([p[i], val, i]);
+		if (first)
+		{
+			r0 = 0;
+			r1 = alpha;
+			t0 = i * Math.PI / 2;
+			t1 = t0 + Math.PI / 2;
+		}
+		else
+		{
+			var rho = p[i].angleTo(v0);
+			r0 = rho - alpha / 2;
+			r1 = rho + alpha / 2;
+			switch (i)
+			{
+				case 0:
+				case 1:
+					t0 = theta;
+					t1 = theta + beta / 2;
+					break;
+
+				case 2:
+				case 3:
+					t0 = theta - beta / 2;
+					t1 = theta;
+					break;
+			}
+		}
+		r0 = Math.floor(r0 / ii);
+		r1 = Math.floor(r1 / ii);
+		t0 = Math.floor(t0 / jj);
+		t1 = Math.floor(t1 / jj);
+		if (r0 < 0)
+			r0 = 0;
+		if (r1 < 0)
+			r1 = 0;
+		if (t0 < 0)
+			t0 += nj;
+		if (t1 < 0)
+			t1 += nj;
+		if (r1 < r0)
+		{
+			var aux = r1;
+			r1 = r0;
+			r0 = aux;
+		}
+		if (t1 < t0)
+		{
+			var aux = t1;
+			t1 = t0;
+			t0 = aux;
+		}
+		var area = 0;
+		for (var ri = r0; ri < r1; ri++)
+		{
+			for (var ti = t0; ti <= t1; ti++)
+			{
+				val += /*map[ri][0] * */map[(ri >= ni ? ni - 1 : ri)][(ti % nj) == 0 ? 1 : ti][1];
+				area++;
+			}
+		}
+		console.log("r0, r1, ni, t0, t1, nj", r0, r1, ni, t0, t1, nj, "(val, area, val / area)", val, area, val / Math.max(area, 1));
+		list.push([p[i], val / Math.max(area, 1), i, Math.min(Math.floor((r0 + r1) / 2), ni), Math.min(Math.max(Math.floor((t0 + t1) / 2), 1), nj)]);
 	}
 	list.sort(function(a, b)
 	{
 		return b[1] - a[1]; // b - a: maior valor primeiro; a - b: menor valor primeiro
 	});
+	if (!first)
+	{
+		if (list[0][2] == 0 || list[0][2] == 1)
+			theta += beta / 4;
+		else
+			theta -= beta / 4;
+	}
+	else
+		theta = list[0][2] * Math.PI / 2 + Math.PI / 4;
+	path.push([list[0][3], list[0][4]]);
 
 	// condicao de parada: se nao houver candidato melhor que a recursao anterior E ja atingiu um candidato melhor que o original
 	// condicao de parada: atingiu o maximo de recursoes (100)
-	if (maxRec == 0)// || (prev > best && list[0][1] <= prev))
+	if (maxRec == 0 || list[0][1] == 0)// || prev > best)
 	{
-		console.log(((100 - 100 * Math.max(prev, list[0][1]) / best) * -1).toFixed(3), list[0][1].toFixed(5), best.toFixed(5));
-		return p0;
+		console.log(((100 - 100 * prev / best) * -1).toFixed(3), prev.toFixed(5), best.toFixed(5), map[path[path.length - 1][0]][path[path.length - 1][1]][1].toFixed(5));
+		return [p0, list[0][3], list[0][4], path];
 	}
 
-	return findBestInSphere(best, mask, ori, v0, alpha / 2, beta / 2, list[0][0], list[0][1], --maxRec, false);
+	return findBestInSphere(best, mask, map, ii, jj, ni, nj, ori, v0, alpha / 2, beta / 2, theta, list[0][0], list[0][1], --maxRec, false, path);
 }
 
 
