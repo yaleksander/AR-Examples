@@ -1117,6 +1117,7 @@ function shrinkList(list, t)
 function findBestInSphere(best, mask, map, ii, jj, ni, nj, ori, v0, alpha, beta = Math.PI, theta = 0, p0 = v0.clone(), prev = 0, maxRec = 150, first = true, path = [])
 {
 	var p = [];
+/*
 	if (first)
 	{
 		var axis = new THREE.Vector3(0, 1, 0).cross(v0).normalize();
@@ -1140,17 +1141,46 @@ function findBestInSphere(best, mask, map, ii, jj, ni, nj, ori, v0, alpha, beta 
 		p[2].applyAxisAngle(v0,   -beta  / 4);
 		p[3].applyAxisAngle(v0,   -beta  / 4);
 	}
+*/
+	if (first)
+	{
+		var axis = new THREE.Vector3(0, 1, 0).cross(v0).normalize();
+		for (var i = 0; i < 8; i++)
+		{
+			p.push(p0.clone().applyAxisAngle(axis, alpha / 2));
+			p[i].applyAxisAngle(v0, i * Math.PI / 2 + Math.PI / 8);
+		}
+	}
+	else
+	{
+		var axis = v0.clone().cross(p0).normalize();
+		for (var i = 0; i < 8; i++)
+			p.push(p0.clone());
+		p[0].applyAxisAngle(axis,  alpha / 2);
+		p[1].applyAxisAngle(axis, -alpha / 2);
+		p[2].applyAxisAngle(axis, -alpha / 2);
+		p[3].applyAxisAngle(axis,  alpha / 2);
+		p[0].applyAxisAngle(v0,    beta  / 4);
+		p[1].applyAxisAngle(v0,    beta  / 4);
+		p[2].applyAxisAngle(v0,   -beta  / 4);
+		p[3].applyAxisAngle(v0,   -beta  / 4);
+
+		p[4].applyAxisAngle(v0,    beta  / 4);
+		p[5].applyAxisAngle(axis, -alpha / 2);
+		p[6].applyAxisAngle(v0,   -beta  / 4);
+		p[7].applyAxisAngle(axis,  alpha / 2);
+	}
 
 	var list = [];
 	var r0, r1, t0, t1;
-	for (var i = 0; i < 4; i++)
+	for (var i = 0; i < 8; i++)
 	{
 		var val = 0;
 		if (first)
 		{
 			r0 = 0;
 			r1 = alpha;
-			t0 = i * Math.PI / 2;
+			t0 = i * Math.PI / 4;
 			t1 = t0 + Math.PI / 2;
 		}
 		else
@@ -1162,14 +1192,26 @@ function findBestInSphere(best, mask, map, ii, jj, ni, nj, ori, v0, alpha, beta 
 			{
 				case 0:
 				case 1:
+				case 4:
 					t0 = theta;
 					t1 = theta + beta / 2;
 					break;
 
 				case 2:
 				case 3:
+				case 6:
 					t0 = theta - beta / 2;
 					t1 = theta;
+					break;
+
+				case 5:
+					t0 = theta - beta / 4;
+					t1 = theta + beta / 4;
+					break;
+
+				case 7:
+					t0 = theta + beta / 4;
+					t1 = theta - beta / 4;
 					break;
 			}
 		}
@@ -1185,6 +1227,10 @@ function findBestInSphere(best, mask, map, ii, jj, ni, nj, ori, v0, alpha, beta 
 			t0 += nj;
 		if (t1 < 0)
 			t1 += nj;
+		if (t0 > nj)
+			t0 -= nj;
+		if (t1 > nj)
+			t1 -= nj;
 
 		if (r1 < r0)
 		{
@@ -1211,7 +1257,12 @@ function findBestInSphere(best, mask, map, ii, jj, ni, nj, ori, v0, alpha, beta 
 			r0 = ni - 2;
 
 		if (t0 > t1)
-			val = map[r1][nj][4] - map[r0][nj][4] - map[r1][t0][4] + map[r0][t0][4] + map[r1][t1][4] - map[r0][t1][4] - map[r1][1][4] + map[r0][1][4];
+		{
+			if (t0 - t1 > 180)
+				val = map[r1][nj][4] - map[r0][nj][4] - (map[r1][t0][4] - map[r0][t0][4] - map[r1][t1][4] + map[r0][t1][4]);
+			else
+				val = map[r1][t0][4] - map[r0][t0][4] - map[r1][t1][4] + map[r0][t1][4];
+		}
 		else
 			val = map[r1][t1][4] - map[r0][t1][4] - map[r1][t0][4] + map[r0][t0][4];
 /*
@@ -1222,7 +1273,7 @@ function findBestInSphere(best, mask, map, ii, jj, ni, nj, ori, v0, alpha, beta 
 			t0 = aux;
 		}
 */
-		var area = (r1 - r0 + 1) * (t1 - t0 + 1);
+		var area = (r1 - r0 + 1) * ((t1 > t0 ? t1 - t0 : nj + t1 - t0) + 1);
 /*
 		for (var ri = r0; ri < r1; ri++)
 		{
@@ -1234,22 +1285,42 @@ function findBestInSphere(best, mask, map, ii, jj, ni, nj, ori, v0, alpha, beta 
 			}
 		}
 */
-		console.log("r0, r1, ni, t0, t1, nj", r0, r1, ni, t0, t1, nj, "(val, area, val / area)", val, area, val / Math.max(area, 1));
-		list.push([p[i], val / Math.max(area, 1), i, Math.min(Math.floor((r0 + r1) / 2), ni), Math.min(Math.max(Math.floor((t0 + t1) / 2), 1), nj)]);
+		//console.log("r0, r1, ni, t0, t1, nj", r0, r1, ni, t0, t1, nj, "(val, area, val / area)", val, area, val / Math.max(area, 1));
+		list.push([p[i], val / Math.max(area, 1), i, Math.min(Math.floor((r0 + r1) / 2), ni), Math.min(Math.max(Math.floor((t0 + t1) / 2) + (t0 > t1 ? nj / 2 : 0), 1), nj)]);
 	}
 	list.sort(function(a, b)
 	{
 		return b[1] - a[1]; // b - a: maior valor primeiro; a - b: menor valor primeiro
 	});
+	var res = "";
+	for (var i = 0; i < 8; i++)
+		res += i.toString() + ". [" + list[i][2] + "] " + list[i][1] + "\t\n";
+	console.log(res);
 	if (!first)
 	{
+/*
 		if (list[0][2] == 0 || list[0][2] == 1)
 			theta += beta / 4;
 		else
 			theta -= beta / 4;
+*/
+		switch (list[0][2])
+		{
+			case 0:
+			case 1:
+			case 4:
+				theta += beta / 4;
+				break;
+
+			case 2:
+			case 3:
+			case 6:
+				theta -= beta / 4;
+				break;
+		}
 	}
 	else
-		theta = list[0][2] * Math.PI / 2 + Math.PI / 4;
+		theta = list[0][2] * Math.PI / 4 + Math.PI / 4;
 	path.push([list[0][3], list[0][4]]);
 
 	// condicao de parada: se nao houver candidato melhor que a recursao anterior E ja atingiu um candidato melhor que o original
