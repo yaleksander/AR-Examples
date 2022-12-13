@@ -844,8 +844,20 @@ function setShadowFromGroundTruth(list, debug = false)
 		{
 			v8.applyAxisAngle(v5, sj);
 			var v9 = v8.clone().multiplyScalar(5).add(v3[k][1]);
-			vl[i].push([v9, getRenderValue(v3[k][1], v9, mask), (i / ni) * Math.cos(j * sj), (i / ni) * Math.sin(j * sj) * -1]);
+			vl[i].push([v9, getRenderValue(v3[k][1], v9, mask), (i / ni) * Math.cos(j * sj), (i / ni) * Math.sin(j * sj) * -1, 0]);
 		}
+	}
+
+	// calcula a imagem integral
+	console.log("integral");
+	vl[0][1][4] = vl[0][1][1];
+	for (var i = 2; i < vl[0].length; i++)
+		vl[0][i][4] = vl[0][i - 1][4] + vl[0][i][1];
+	for (var i = 1; i < vl.length; i++)
+	{
+		vl[i][1][4] = vl[i - 1][1][4] + vl[i][1][1];
+		for (var j = 2; j < vl[i].length; j++)
+			vl[i][j][4] = vl[i][j][1] + vl[i][j - 1][4] + vl[i - 1][j][4] - vl[i - 1][j - 1][4];
 	}
 
 	// encontra o melhor ponto da calota esferica
@@ -872,10 +884,10 @@ function setShadowFromGroundTruth(list, debug = false)
 			}
 		}
 		canvas2.width  = 640;
-		canvas2.height = 512;
+		canvas2.height = 732;
 		ctx2 = canvas2.getContext("2d", true, false, "srgb", true);
 		ctx2.fillStyle = "black";
-		ctx2.fillRect(0, 0, size, size);
+		ctx2.fillRect(0, 0, 640, 732);
 		for (var i = 0; i < vl.length; i++)
 		{
 			for (var j = 1; j < vl[i].length; j++)
@@ -886,13 +898,33 @@ function setShadowFromGroundTruth(list, debug = false)
 				}
 			}
 		}
+		ctx2.lineWidth = 2;
+		ctx2.strokeStyle = "#000000";
+		var rho = 120;
+		var theta = Math.PI / 4;
 		for (var i = 0; i < res[3].length; i++)
 		{
+			var x = vl[res[3][i][0]][res[3][i][1]][2] * 240;
+			var y = vl[res[3][i][0]][res[3][i][1]][3] * 240;
+			var r = Math.sqrt(x * x + y * y);
+			var a = Math.atan2(y, x);
+			console.log(x, y, r, a * 180 / Math.PI);
 			ctx2.beginPath();
-			ctx2.lineWidth = 6;
-			ctx2.strokeStyle = "#ff73a4";
-			ctx2.arc(vl[res[3][i][0]][res[3][i][1]][2] * 240 + 258, vl[res[3][i][0]][res[3][i][1]][3] * 240 + 258, 3, 0, Math.PI * 2);
+			ctx2.moveTo((r - rho) * Math.cos(a - theta) + 258, (r - rho) * Math.sin(a - theta) + 258);
+			ctx2.lineTo((r + rho) * Math.cos(a - theta) + 258, (r + rho) * Math.sin(a - theta) + 258);
 			ctx2.stroke();
+			ctx2.beginPath();
+			ctx2.moveTo((r - rho) * Math.cos(a + theta) + 258, (r - rho) * Math.sin(a + theta) + 258);
+			ctx2.lineTo((r + rho) * Math.cos(a + theta) + 258, (r + rho) * Math.sin(a + theta) + 258);
+			ctx2.stroke();
+			ctx2.beginPath();
+			ctx2.arc(258, 258, Math.max(r - rho, 0), a - theta, a + theta);
+			ctx2.stroke();
+			ctx2.beginPath();
+			ctx2.arc(258, 258, r + rho, a - theta, a + theta);
+			ctx2.stroke();
+			rho /= 2;
+			theta /= 2;
 		}
 		for (var i = 0; i < vl.length; i++)
 		{
@@ -932,6 +964,47 @@ function setShadowFromGroundTruth(list, debug = false)
 		ctx2.fillText(mv.toFixed(3), 580, 512 - 450 * ((mv - minVal) / (maxVal - minVal)));
 		ctx2.fillText("chute",       580, 532 - 450 * ((mv - minVal) / (maxVal - minVal)));
 		ctx2.fillText("inicial",     580, 552 - 450 * ((mv - minVal) / (maxVal - minVal)));
+
+		var minImg = vl[0][1][1];
+		var maxImg = vl[0][1][1];
+		var minInt = vl[0][1][4];
+		var maxInt = vl[0][1][4];
+		for (var i = 0; i < 50; i++)
+		{
+			for (var j = 1; j < 360; j++)
+			{
+				if (minImg > vl[i][j][1])
+					minImg = vl[i][j][1];
+				if (maxImg < vl[i][j][1])
+					maxImg = vl[i][j][1];
+				if (minInt > vl[i][j][4])
+					minInt = vl[i][j][4];
+				if (maxInt < vl[i][j][4])
+					maxInt = vl[i][j][4];
+			}
+		}
+		for (var i = 0; i < 360; i++)
+		{
+			ctx2.fillStyle = colorScale(i, 0, 360);
+			ctx2.fillRect(140 + i, 592, 1, 10);
+			ctx2.fillRect(140 + i, 692, 1, 10);
+		}
+		for (var i = 0; i < 50; i++)
+		{
+			for (var j = 1; j < 360; j++)
+			{
+				ctx2.fillStyle = colorScale(vl[i][j][1], minImg, maxImg);
+				ctx2.fillRect(140 + j, 522 + i, 1, 1);
+				ctx2.fillStyle = colorScale(vl[i][j][4], minInt, maxInt);
+				ctx2.fillRect(140 + j, 622 + i, 1, 1);
+			}
+		}
+		ctx2.fillStyle = "red";
+		ctx2.fillText(maxImg.toFixed(3), 510, 602);
+		ctx2.fillText(maxInt.toFixed(3), 510, 702);
+		ctx2.fillStyle = "blue";
+		ctx2.fillText(minImg.toFixed(3),  90, 602);
+		ctx2.fillText(minInt.toFixed(3),  90, 702);
 
 		light.position.set(v6.x, v6.y, v6.z);
 
@@ -1112,27 +1185,55 @@ function findBestInSphere(best, mask, map, ii, jj, ni, nj, ori, v0, alpha, beta 
 			t0 += nj;
 		if (t1 < 0)
 			t1 += nj;
+
 		if (r1 < r0)
 		{
 			var aux = r1;
 			r1 = r0;
 			r0 = aux;
 		}
+
+		if (t0 == 0)
+			t0 = 1;
+		if (t1 == 0)
+			t1 = 1;
+		if (t0 == t1)
+			t1 = t0 + 1;
+		if (r0 == r1)
+			r1 = r0 + 1;
+		if (t1 == nj)
+			t1 = nj - 1;
+		if (r1 == ni)
+			r1 = ni - 1;
+		if (t0 == nj)
+			t0 = nj - 2;
+		if (r0 == ni)
+			r0 = ni - 2;
+
+		if (t0 > t1)
+			val = map[r1][nj][4] - map[r0][nj][4] - map[r1][t0][4] + map[r0][t0][4] + map[r1][t1][4] - map[r0][t1][4] - map[r1][1][4] + map[r0][1][4];
+		else
+			val = map[r1][t1][4] - map[r0][t1][4] - map[r1][t0][4] + map[r0][t0][4];
+/*
 		if (t1 < t0)
 		{
 			var aux = t1;
 			t1 = t0;
 			t0 = aux;
 		}
-		var area = 0;
+*/
+		var area = (r1 - r0 + 1) * (t1 - t0 + 1);
+/*
 		for (var ri = r0; ri < r1; ri++)
 		{
 			for (var ti = t0; ti <= t1; ti++)
 			{
-				val += /*map[ri][0] * */map[(ri >= ni ? ni - 1 : ri)][(ti % nj) == 0 ? 1 : ti][1];
+//				val += map[ri][0] * map[(ri >= ni ? ni - 1 : ri)][(ti % nj) == 0 ? 1 : ti][1];
+				val += map[(ri >= ni ? ni - 1 : ri)][(ti % nj) == 0 ? 1 : ti][1];
 				area++;
 			}
 		}
+*/
 		console.log("r0, r1, ni, t0, t1, nj", r0, r1, ni, t0, t1, nj, "(val, area, val / area)", val, area, val / Math.max(area, 1));
 		list.push([p[i], val / Math.max(area, 1), i, Math.min(Math.floor((r0 + r1) / 2), ni), Math.min(Math.max(Math.floor((t0 + t1) / 2), 1), nj)]);
 	}
