@@ -839,7 +839,8 @@ function setShadowFromGroundTruth(list, debug = false)
 	for (var i = 0; i < ni; i++)
 	{
 		v8.applyAxisAngle(v7, si);
-		vl.push([Math.PI * (Math.pow((i + 1) * si / ni, 2) - Math.pow(i * si / ni, 2)) * (sj / nj) * 1000000000]);
+		//vl.push([Math.PI * (Math.pow((i + 1) * si / ni, 2) - Math.pow(i * si / ni, 2)) * (sj / nj) * 1000000000]);
+		vl.push([]);
 		for (var j = 0; j < nj; j++)
 		{
 			v8.applyAxisAngle(v5, sj);
@@ -850,13 +851,13 @@ function setShadowFromGroundTruth(list, debug = false)
 
 	// calcula a imagem integral
 	console.log("integral");
-	vl[0][1][4] = vl[0][1][1];
-	for (var i = 2; i < vl[0].length; i++)
+	vl[0][0][4] = vl[0][0][1];
+	for (var i = 1; i < vl[0].length; i++)
 		vl[0][i][4] = vl[0][i - 1][4] + vl[0][i][1];
 	for (var i = 1; i < vl.length; i++)
 	{
-		vl[i][1][4] = vl[i - 1][1][4] + vl[i][1][1];
-		for (var j = 2; j < vl[i].length; j++)
+		vl[i][0][4] = vl[i - 1][0][4] + vl[i][0][1];
+		for (var j = 1; j < vl[i].length; j++)
 			vl[i][j][4] = vl[i][j][1] + vl[i][j - 1][4] + vl[i - 1][j][4] - vl[i - 1][j - 1][4];
 	}
 
@@ -890,7 +891,7 @@ function setShadowFromGroundTruth(list, debug = false)
 		ctx2.fillRect(0, 0, 640, 732);
 		for (var i = 0; i < vl.length; i++)
 		{
-			for (var j = 1; j < vl[i].length; j++)
+			for (var j = 0; j < vl[i].length; j++)
 			{
 				{
 					ctx2.fillStyle = colorScale(vl[i][j][1], minVal, maxVal);
@@ -928,7 +929,7 @@ function setShadowFromGroundTruth(list, debug = false)
 		}
 		for (var i = 0; i < vl.length; i++)
 		{
-			for (var j = 1; j < vl[i].length; j++)
+			for (var j = 0; j < vl[i].length; j++)
 			{
 				if (vl[i][j][1] == maxVal)
 				{
@@ -965,13 +966,13 @@ function setShadowFromGroundTruth(list, debug = false)
 		ctx2.fillText("chute",       580, 532 - 450 * ((mv - minVal) / (maxVal - minVal)));
 		ctx2.fillText("inicial",     580, 552 - 450 * ((mv - minVal) / (maxVal - minVal)));
 
-		var minImg = vl[0][1][1];
-		var maxImg = vl[0][1][1];
-		var minInt = vl[0][1][4];
-		var maxInt = vl[0][1][4];
+		var minImg = vl[0][0][1];
+		var maxImg = vl[0][0][1];
+		var minInt = vl[0][0][4];
+		var maxInt = vl[0][0][4];
 		for (var i = 0; i < 50; i++)
 		{
-			for (var j = 1; j < 360; j++)
+			for (var j = 0; j < 360; j++)
 			{
 				if (minImg > vl[i][j][1])
 					minImg = vl[i][j][1];
@@ -991,7 +992,7 @@ function setShadowFromGroundTruth(list, debug = false)
 		}
 		for (var i = 0; i < 50; i++)
 		{
-			for (var j = 1; j < 360; j++)
+			for (var j = 0; j < 360; j++)
 			{
 				ctx2.fillStyle = colorScale(vl[i][j][1], minImg, maxImg);
 				ctx2.fillRect(140 + j, 522 + i, 1, 1);
@@ -1114,7 +1115,7 @@ function shrinkList(list, t)
 
 
 //
-function findBestInSphere(best, mask, map, ii, jj, ni, nj, ori, v0, alpha, beta = Math.PI, theta = 0, p0 = v0.clone(), prev = 0, maxRec = 150, first = true, path = [])
+function findBestInSphere(best, mask, map, ii, jj, ni, nj, ori, v0, alpha, beta = Math.PI, theta = 0, p0 = v0.clone(), prev = 0, maxRec = 10, first = true, path = [])
 {
 	var p = [];
 /*
@@ -1172,6 +1173,7 @@ function findBestInSphere(best, mask, map, ii, jj, ni, nj, ori, v0, alpha, beta 
 	}
 
 	var list = [];
+	var res = [];
 	var r0, r1, t0, t1;
 	for (var i = 0; i < 8; i++)
 	{
@@ -1215,95 +1217,138 @@ function findBestInSphere(best, mask, map, ii, jj, ni, nj, ori, v0, alpha, beta 
 					break;
 			}
 		}
-		r0 = Math.floor(r0 / ii);
-		r1 = Math.floor(r1 / ii);
-		t0 = Math.floor(t0 / jj);
-		t1 = Math.floor(t1 / jj);
+		res.push([]);
+		res[i].push(r0 *  36 / Math.PI);
+		res[i].push(r1 *  36 / Math.PI);
+		res[i].push(t0 * 180 / Math.PI);
+		res[i].push(t1 * 180 / Math.PI);
+		var area = (r1 * r1 - r0 * r0) * Math.PI * (Math.abs(t1 - t0) / (2 * Math.PI));
+		r0 = Math.round(r0 / ii);
+		r1 = Math.round(r1 / ii);
+		t0 = Math.round(t0 / jj);
+		t1 = Math.round(t1 / jj);
 		if (r0 < 0)
 			r0 = 0;
-		if (r1 < 0)
-			r1 = 0;
-		if (t0 < 0)
+		if (r1 < 1)
+			r1 = 1;
+		if (r0 > ni - 2)
+			r0 = ni - 2;
+		if (r1 > ni - 1)
+			r1 = ni - 1;
+		while (t0 < 0)
 			t0 += nj;
-		if (t1 < 0)
+		while (t1 < 0)
 			t1 += nj;
-		if (t0 > nj)
+		while (t0 >= nj)
 			t0 -= nj;
-		if (t1 > nj)
+		while (t1 >= nj)
 			t1 -= nj;
-
-		if (r1 < r0)
+		if (r0 == r1)
+			r1++;
+		if (t0 == t1)
 		{
-			var aux = r1;
-			r1 = r0;
-			r0 = aux;
+			if (t0 == nj - 1)
+				t0--;
+			else
+				t1++;
 		}
 
-		if (t0 == 0)
-			t0 = 1;
-		if (t1 == 0)
-			t1 = 1;
-		if (t0 == t1)
-			t1 = t0 + 1;
-		if (r0 == r1)
-			r1 = r0 + 1;
-		if (t1 == nj)
-			t1 = nj - 1;
-		if (r1 == ni)
-			r1 = ni - 1;
-		if (t0 == nj)
-			t0 = nj - 2;
-		if (r0 == ni)
-			r0 = ni - 2;
-
+		var lMax = 0;
 		if (t0 > t1)
 		{
-			if (t0 - t1 > 180)
-				val = map[r1][nj][4] - map[r0][nj][4] - (map[r1][t0][4] - map[r0][t0][4] - map[r1][t1][4] + map[r0][t1][4]);
-			else
-				val = map[r1][t0][4] - map[r0][t0][4] - map[r1][t1][4] + map[r0][t1][4];
-		}
-		else
-			val = map[r1][t1][4] - map[r0][t1][4] - map[r1][t0][4] + map[r0][t0][4];
-/*
-		if (t1 < t0)
-		{
-			var aux = t1;
-			t1 = t0;
-			t0 = aux;
-		}
-*/
-		var area = (r1 - r0 + 1) * ((t1 > t0 ? t1 - t0 : nj + t1 - t0) + 1);
-/*
-		for (var ri = r0; ri < r1; ri++)
-		{
-			for (var ti = t0; ti <= t1; ti++)
+			for (var j = r0; j <= r1; j++)
 			{
-//				val += map[ri][0] * map[(ri >= ni ? ni - 1 : ri)][(ti % nj) == 0 ? 1 : ti][1];
-				val += map[(ri >= ni ? ni - 1 : ri)][(ti % nj) == 0 ? 1 : ti][1];
-				area++;
+				for (var k = 0; k < t1; k++)
+					lMax = Math.max(lMax, map[j][k][1]);//val += map[j][k][1];
+				for (var k = t0 + 1; k < nj; k++)
+					lMax = Math.max(lMax, map[j][k][1]);//val += map[j][k][1];
 			}
 		}
+		else
+			for (var j = r0; j <= r1; j++)
+				for (var k = t0; k <= t1; k++)
+					lMax = Math.max(lMax, map[j][k][1]);//val += map[j][k][1];
+		res[i].push(lMax);
+		r0--;
+		if (t0 > t1)
+		{
+			t1--;
+			var a, b, c, d, e, f;
+			a = b = c = e = 0;
+			if (r0 >= 0)
+			{
+				c = map[r0][t0][4];
+				e = map[r0][nj - 1][4];
+			}
+			if (t1 >= 0)
+				b = map[r1][t1][4];
+			if (r0 >= 0 && t1 >= 0)
+				a = map[r0][t1][4];
+			d = map[r1][t0][4];
+			f = map[r1][nj - 1][4];
+			val = f - e - (d - b - c + a);
+		}
+		else
+		{
+			t0--;
+			var a, b, c, d;
+			a = b = c = e = 0;
+			if (r0 >= 0)
+				c = map[r0][t1][4];
+			if (t0 >= 0)
+				b = map[r1][t0][4];
+			if (r0 >= 0 && t0 >= 0)
+				a = map[r0][t0][4];
+			d = map[r1][t1][4];
+			val = d - b - c + a;
+		}
+/*
+		if (t0 > t1)
+			val = map[r1][nj - 1][4] - (r0 == 0 ? 0 : map[r0 - 1][nj - 1][4]) - (map[r1][t0][4] - map[r0][t0][4] - map[r1][t1][4] + map[r0][t1][4]);
+		else
+			val = map[r1][t1][4] - (r0 == 0 ? 0 : map[r0 - 1][t1][4]) - (t0 == 0 ? 0 : map[r1][t0 - 1][4]) + (r0 == 0 || t0 == 0 ? 0 : map[r0 - 1][t0 - 1][4]);
 */
-		//console.log("r0, r1, ni, t0, t1, nj", r0, r1, ni, t0, t1, nj, "(val, area, val / area)", val, area, val / Math.max(area, 1));
-		list.push([p[i], val / Math.max(area, 1), i, Math.min(Math.floor((r0 + r1) / 2), ni), Math.min(Math.max(Math.floor((t0 + t1) / 2) + (t0 > t1 ? nj / 2 : 0), 1), nj)]);
+		res[i].push(val);
+		res[i].push(area);
+		area = Math.max(r1 - r0, 1) * Math.max(t1 > t0 ? t1 - t0 : nj + t1 - t0, 1);
+		res[i].push(area);
+		val /= area;
+		res[i].push(val);
+
+		list.push([p[i], val * lMax, i, Math.min(Math.round((r0 + r1) / 2), ni - 1), Math.min(Math.round((t0 + t1) / 2) + (t0 > t1 ? nj / 2 : 0), nj - 1)]);
+
+		/*for (var ri = r0; ri < r1; ri++)
+		{
+			if (t0 > t1)
+			{
+				for (var ti = t0; (ti % nj) != t1 + 1; ti++)
+					res[i][8] += map[ri][ti % nj][1];
+			}
+			else
+			{
+				for (var ti = t0; ti < t1; ti++)
+					res[i][8] += map[ri][ti][1];
+			}
+		}*/
 	}
 	list.sort(function(a, b)
 	{
 		return b[1] - a[1]; // b - a: maior valor primeiro; a - b: menor valor primeiro
 	});
-	var res = "";
-	for (var i = 0; i < 8; i++)
-		res += i.toString() + ". [" + list[i][2] + "] " + list[i][1] + "\t\n";
-	console.log(res);
+	var sum = 0;
+	for (var i = 0; i < 4; i++)
+		sum += res[first ? 2 * i : i][8];
+	var str = "";
+	for (var i = 0; i < 4; i++)
+	{
+		for (var j = 4; j < 8; j++)
+			str += res[first ? 2 * i : i][j].toString() + ", ";
+		str += res[first ? 2 * i : i][8] + "\n";
+	}
+//	console.log(str);
+	console.log(res[list[0][2]]);//, sum, sum - res[list[0][2]][8]);
 	if (!first)
 	{
-/*
-		if (list[0][2] == 0 || list[0][2] == 1)
-			theta += beta / 4;
-		else
-			theta -= beta / 4;
-*/
 		switch (list[0][2])
 		{
 			case 0:
