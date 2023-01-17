@@ -863,7 +863,8 @@ function setShadowFromGroundTruth(list, debug = false)
 
 	// encontra o melhor ponto da calota esferica
 	console.log("cap");
-	var res = findBestInSphere(mv, mask, vl, si, sj, ni, nj, v3[k][1], v5, alpha);
+	var div = false;
+	var res = findBestInSphere(div, mv, mask, vl, si, sj, ni, nj, v3[k][1], v5, alpha);
 	var v6 = res[0].multiplyScalar(5).add(v3[k][1]);
 	light.position.set(v6.x, v6.y, v6.z);
 
@@ -871,6 +872,7 @@ function setShadowFromGroundTruth(list, debug = false)
 	if (debug)
 	{
 		console.log("draw");
+//		console.log(res[3]);
 		var minVal = 1;
 		var maxVal = 0;
 		for (var i = 0; i < vl.length; i++)
@@ -901,15 +903,16 @@ function setShadowFromGroundTruth(list, debug = false)
 		}
 		ctx2.lineWidth = 2;
 		ctx2.strokeStyle = "#000000";
-		var rho = 120;
-		var theta = Math.PI / 4;
+		var rho, theta;
 		for (var i = 0; i < res[3].length; i++)
 		{
+			rho   = 240 / (2 * res[3][i][4]);
+			theta = Math.PI / ((div ? 8 : 4) * res[3][i][4]);
 			var x = vl[res[3][i][0]][res[3][i][1]][2] * 240;
 			var y = vl[res[3][i][0]][res[3][i][1]][3] * 240;
 			var r = Math.sqrt(x * x + y * y);
 			var a = Math.atan2(y, x);
-			console.log(x, y, r, a * 180 / Math.PI);
+			//console.log(x, y, r, a * 180 / Math.PI);
 			ctx2.beginPath();
 			ctx2.moveTo((r - rho) * Math.cos(a - theta) + 258, (r - rho) * Math.sin(a - theta) + 258);
 			ctx2.lineTo((r + rho) * Math.cos(a - theta) + 258, (r + rho) * Math.sin(a - theta) + 258);
@@ -924,8 +927,25 @@ function setShadowFromGroundTruth(list, debug = false)
 			ctx2.beginPath();
 			ctx2.arc(258, 258, r + rho, a - theta, a + theta);
 			ctx2.stroke();
-			rho /= 2;
-			theta /= 2;
+			/*
+				rho /= 2;
+				theta /= 2;
+			*/
+		}
+		for (var i = 0; i < res[3].length; i++)
+		{
+			var x = vl[res[3][i][2]][res[3][i][3]][2] * 240 + 258;
+			var y = vl[res[3][i][2]][res[3][i][3]][3] * 240 + 258;
+			ctx2.beginPath();
+			ctx2.lineWidth = 6;
+			ctx2.strokeStyle = colorScale(vl[res[3][i][2]][res[3][i][3]][1], minVal, maxVal);
+			ctx2.arc(x, y, 3, 0, Math.PI * 2);
+			ctx2.stroke();
+			ctx2.beginPath();
+			ctx2.lineWidth = 2;
+			ctx2.strokeStyle = "#ffffff";
+			ctx2.arc(x, y, 6, 0, Math.PI * 2);
+			ctx2.stroke();
 		}
 		for (var i = 0; i < vl.length; i++)
 		{
@@ -1115,7 +1135,7 @@ function shrinkList(list, t)
 
 
 //
-function findBestInSphere(best, mask, map, ii, jj, ni, nj, ori, v0, alpha, beta = Math.PI, theta = 0, p0 = v0.clone(), prev = 0, maxRec = 10, first = true, path = [])
+function findBestInSphere(extra, best, mask, map, ii, jj, ni, nj, ori, v0, alpha, beta = Math.PI, theta = 0, p0 = v0.clone(), prev = 0, maxRec = 10, depth = 1, first = true, path = [])
 {
 	var p = [];
 /*
@@ -1149,13 +1169,13 @@ function findBestInSphere(best, mask, map, ii, jj, ni, nj, ori, v0, alpha, beta 
 		for (var i = 0; i < 8; i++)
 		{
 			p.push(p0.clone().applyAxisAngle(axis, alpha / 2));
-			p[i].applyAxisAngle(v0, i * Math.PI / 2 + Math.PI / 8);
+			p[i].applyAxisAngle(v0, i * Math.PI / 2 + Math.PI / (extra ? 8 : 4));
 		}
 	}
 	else
 	{
 		var axis = v0.clone().cross(p0).normalize();
-		for (var i = 0; i < 8; i++)
+		for (var i = 0; i < (extra ? 8 : 4); i++)
 			p.push(p0.clone());
 		p[0].applyAxisAngle(axis,  alpha / 2);
 		p[1].applyAxisAngle(axis, -alpha / 2);
@@ -1166,23 +1186,26 @@ function findBestInSphere(best, mask, map, ii, jj, ni, nj, ori, v0, alpha, beta 
 		p[2].applyAxisAngle(v0,   -beta  / 4);
 		p[3].applyAxisAngle(v0,   -beta  / 4);
 
-		p[4].applyAxisAngle(v0,    beta  / 4);
-		p[5].applyAxisAngle(axis, -alpha / 2);
-		p[6].applyAxisAngle(v0,   -beta  / 4);
-		p[7].applyAxisAngle(axis,  alpha / 2);
+		if (extra)
+		{
+			p[4].applyAxisAngle(v0,    beta  / 4);
+			p[5].applyAxisAngle(axis, -alpha / 2);
+			p[6].applyAxisAngle(v0,   -beta  / 4);
+			p[7].applyAxisAngle(axis,  alpha / 2);
+		}
 	}
 
 	var list = [];
 	var res = [];
 	var r0, r1, t0, t1;
-	for (var i = 0; i < 8; i++)
+	for (var i = 0; i < (extra ? 8 : 4); i++)
 	{
 		var val = 0;
 		if (first)
 		{
 			r0 = 0;
 			r1 = alpha;
-			t0 = i * Math.PI / 4;
+			t0 = i * Math.PI / (extra ? 4 : 2);
 			t1 = t0 + Math.PI / 2;
 		}
 		else
@@ -1252,6 +1275,8 @@ function findBestInSphere(best, mask, map, ii, jj, ni, nj, ori, v0, alpha, beta 
 			else
 				t1++;
 		}
+		var ar = Math.min(Math.round((r0 + r1) / 2), ni - 1);
+		var at = Math.min(Math.round((t0 + t1) / 2) + (t0 > t1 ? nj / 2 : 0), nj - 1);
 
 		var lMax = 0;
 		if (t0 > t1)
@@ -1302,21 +1327,22 @@ function findBestInSphere(best, mask, map, ii, jj, ni, nj, ori, v0, alpha, beta 
 			d = map[r1][t1][4];
 			val = d - b - c + a;
 		}
+		r0++;
+		t0++;
 /*
 		if (t0 > t1)
 			val = map[r1][nj - 1][4] - (r0 == 0 ? 0 : map[r0 - 1][nj - 1][4]) - (map[r1][t0][4] - map[r0][t0][4] - map[r1][t1][4] + map[r0][t1][4]);
 		else
 			val = map[r1][t1][4] - (r0 == 0 ? 0 : map[r0 - 1][t1][4]) - (t0 == 0 ? 0 : map[r1][t0 - 1][4]) + (r0 == 0 || t0 == 0 ? 0 : map[r0 - 1][t0 - 1][4]);
 */
+/*
 		res[i].push(val);
 		res[i].push(area);
 		area = Math.max(r1 - r0, 1) * Math.max(t1 > t0 ? t1 - t0 : nj + t1 - t0, 1);
 		res[i].push(area);
 		val /= area;
 		res[i].push(val);
-
-		list.push([p[i], val * lMax, i, Math.min(Math.round((r0 + r1) / 2), ni - 1), Math.min(Math.round((t0 + t1) / 2) + (t0 > t1 ? nj / 2 : 0), nj - 1)]);
-
+*/
 		/*for (var ri = r0; ri < r1; ri++)
 		{
 			if (t0 > t1)
@@ -1330,11 +1356,77 @@ function findBestInSphere(best, mask, map, ii, jj, ni, nj, ori, v0, alpha, beta 
 					res[i][8] += map[ri][ti][1];
 			}
 		}*/
+		var mr, mt;
+		if (t0 > t1)
+		{
+			for (var j = r0; j <= r1; j++)
+			{
+				for (var k = 0; k < t1; k++)
+				{
+					if (lMax == map[j][k][1])
+					{
+						mr = j;
+						mt = k;
+					}
+				}
+				for (var k = t0 + 1; k < nj; k++)
+				{
+					if (lMax == map[j][k][1])
+					{
+						mr = j;
+						mt = k;
+					}
+				}
+			}
+		}
+		else
+		{
+			for (var j = r0; j <= r1; j++)
+			{
+				for (var k = t0; k <= t1; k++)
+				{
+					if (lMax == map[j][k][1])
+					{
+						mr = j;
+						mt = k;
+					}
+				}
+			}
+		}
+//		console.log(lMax, mr, mt);
+/*		for (var ri = r0; ri < r1; ri++)
+		{
+			if (t0 > t1)
+			{
+				for (var ti = t0; (ti % nj) != t1 + 1; ti++)
+				{
+					if (map[ri][ti % nj][1] > mv)
+					{
+						mv = map[ri][ti % nj][1];
+						mr = ri;
+						mt = ti % nj;
+					}
+				}
+			}
+			else
+			{
+				for (var ti = t0; ti < t1; ti++)
+				{
+					if (map[ri][ti][1] > mv)
+					{
+						mv = map[ri][ti][1];
+						mr = ri;
+						mt = ti;
+					}
+				}
+			}
+		}*/
+		list.push([p[i], val * lMax, i, ar, at, mr, mt]);
 	}
 	list.sort(function(a, b)
 	{
 		return b[1] - a[1]; // b - a: maior valor primeiro; a - b: menor valor primeiro
-	});
+	});/*
 	var sum = 0;
 	for (var i = 0; i < 4; i++)
 		sum += res[first ? 2 * i : i][8];
@@ -1344,7 +1436,7 @@ function findBestInSphere(best, mask, map, ii, jj, ni, nj, ori, v0, alpha, beta 
 		for (var j = 4; j < 8; j++)
 			str += res[first ? 2 * i : i][j].toString() + ", ";
 		str += res[first ? 2 * i : i][8] + "\n";
-	}
+	}*/
 //	console.log(str);
 	console.log(res[list[0][2]]);//, sum, sum - res[list[0][2]][8]);
 	if (!first)
@@ -1365,18 +1457,64 @@ function findBestInSphere(best, mask, map, ii, jj, ni, nj, ori, v0, alpha, beta 
 		}
 	}
 	else
-		theta = list[0][2] * Math.PI / 4 + Math.PI / 4;
-	path.push([list[0][3], list[0][4]]);
+		theta = list[0][2] * Math.PI / (extra ? 4 : 2) + Math.PI / 4;
+	path.push([list[0][3], list[0][4], list[0][5], list[0][6], depth]);
 
 	// condicao de parada: se nao houver candidato melhor que a recursao anterior E ja atingiu um candidato melhor que o original
 	// condicao de parada: atingiu o maximo de recursoes (100)
 	if (maxRec == 0 || list[0][1] == 0)// || prev > best)
 	{
-		console.log(((100 - 100 * prev / best) * -1).toFixed(3), prev.toFixed(5), best.toFixed(5), map[path[path.length - 1][0]][path[path.length - 1][1]][1].toFixed(5));
-		return [p0, list[0][3], list[0][4], path];
+		//console.log(((100 - 100 * prev / best) * -1).toFixed(3), prev.toFixed(5), best.toFixed(5), map[path[path.length - 1][0]][path[path.length - 1][1]][1].toFixed(5));
+		return [p0, list[0][3], list[0][4], path, list[0][1]];
 	}
 
-	return findBestInSphere(best, mask, map, ii, jj, ni, nj, ori, v0, alpha / 2, beta / 2, theta, list[0][0], list[0][1], --maxRec, false, path);
+	if (maxRec > 8)
+	{
+		var l = [];
+		for (var i = 0; i < (extra ? 8 : 4); i++)
+		{
+			path.push([list[i][3], list[i][4], list[i][5], list[i][6], depth]);
+			var t = theta;
+			switch (list[0][2])
+			{
+				case 0:
+				case 1:
+				case 4:
+					t -= beta / 4;
+					break;
+
+				case 2:
+				case 3:
+				case 6:
+					t += beta / 4;
+					break;
+			}
+			switch (list[i][2])
+			{
+				case 0:
+				case 1:
+				case 4:
+					t += beta / 4;
+					break;
+
+				case 2:
+				case 3:
+				case 6:
+					t -= beta / 4;
+					break;
+			}
+			if (first)
+				t = list[i][2] * Math.PI / (extra ? 4 : 2) + Math.PI / 4;
+			l.push(findBestInSphere(extra, best, mask, map, ii, jj, ni, nj, ori, v0, alpha / 2, beta / 2, t, list[i][0], list[i][1], maxRec - 1, depth + 1, false, path));
+		}
+		l.sort(function(a, b)
+		{
+			return b[4] - a[4];
+		});
+		return l[0];
+	}
+	else
+		return findBestInSphere(extra, best, mask, map, ii, jj, ni, nj, ori, v0, alpha / 2, beta / 2, theta, list[0][0], list[0][1], maxRec - 1, depth + 1, false, path);
 }
 
 
