@@ -11,12 +11,13 @@ var gtObj1, gtObj2, gtObj3, gtLine1, gtLine2, gtLine3, gtPlane, phase;
 var adjustX, adjustZ;
 var lightFm, emptyObjFm, lp, ltp, lfp, lftp, whichLight = true;
 var files, fc, uival, fmval, start = false, done = false;
+var globalResult = "";
 
 var ray    = new THREE.Raycaster();
 var mouse  = new THREE.Vector2();
 var loader = new THREE.TextureLoader();
 
-var planeSize, sPlaneSize, sPlaneSegments, vObjHeight;
+var planeSize, sPlaneSize, sPlaneSegments, vObjHeight, vObjRatio;
 var mag;
 
 initialize();
@@ -157,6 +158,7 @@ function initialize()
 	sPlaneSize     =  15.00;
 	sPlaneSegments = 300.00;
 	vObjHeight     =   1.20;
+	vObjRatio      =   2.00;
 	adjustX        =   0.00;
 	adjustZ        =   0.00;
 
@@ -291,7 +293,7 @@ function initialize()
 	var ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
 	origLight = new THREE.DirectionalLight(0xffffff);
 	origLight.castShadow = true;
-	var d = vObjHeight * 40;
+	var d = vObjRatio * vObjHeight * 40;
 	origLight.shadow.camera.left   = -d;
 	origLight.shadow.camera.right  =  d;
 	origLight.shadow.camera.top    =  d;
@@ -314,7 +316,7 @@ function initialize()
 	 *
 	 *********************************************************************************************/
 
-	var cube     = new THREE.BoxBufferGeometry(vObjHeight, vObjHeight, vObjHeight);
+	var cube     = new THREE.BoxBufferGeometry(vObjHeight, vObjHeight * vObjRatio, vObjHeight);
 	var plane    = new THREE.PlaneGeometry(planeSize, planeSize, 150, 150);
 	var splane   = new THREE.PlaneGeometry(sPlaneSize, sPlaneSize, sPlaneSegments, sPlaneSegments);
 	var sphere1  = new THREE.SphereGeometry(vObjHeight * 0.7, 32, 16);
@@ -422,10 +424,10 @@ function initialize()
 	stoneFloor.position.y = -0.05;
 	grassFloor.position.y = -0.05;
 	//auxFloor.position.y = -0.04;
-	vObj.position.y = vObjHeight / 2;
-	rubrikCube.position.y = vObjHeight / 2;
-	stoneSphere1.position.y = vObjHeight * 0.6;
-	stoneSphere2.position.y = vObjHeight * 0.4;
+	vObj.position.y = vObjRatio * vObjHeight / 2;
+	rubrikCube.position.y = vObjRatio * vObjHeight / 2;
+	stoneSphere1.position.y = vObjRatio * vObjHeight * 0.6;
+	stoneSphere2.position.y = vObjRatio * vObjHeight * 0.4;
 	shadowPlane.position.y = floor.position.clone().y;
 //	shadowPlane.position.x = vObj.positoin.x;
 //	shadowPlane.position.z = vObj.positoin.z;
@@ -621,11 +623,11 @@ function setScene(id)
 			break;
 
 		default:
-			origLight.position.set(10 * vObjHeight, vObjHeight / 2, vObjHeight / 2);
-			light.position.set    (10 * vObjHeight, vObjHeight / 2, vObjHeight / 2);
-//			console.log(light.position);
-//			console.log(light.target.position);
-			vObj.position.set     (adjustX, vObjHeight / 2, adjustZ);
+			origLight.position.set(10 * vObjHeight, vObjRatio * vObjHeight / 2, vObjHeight / 2);
+			light.position.set    (10 * vObjHeight, vObjRatio * vObjHeight / 2, vObjHeight / 2);
+//			//console.log(light.position);
+//			//console.log(light.target.position);
+			vObj.position.set     (adjustX, vObjRatio * vObjHeight / 2, adjustZ);
 			vObj.rotation.set     (0, 0, 0);
 			stoneSphere1.visible  = false;
 			stoneSphere2.visible  = false;
@@ -640,17 +642,21 @@ function setScene(id)
 			break;
 	}
 	mag = (origLight.target.position.clone()).sub(origLight.position.clone()).normalize();
-	vObj.position.y = vObjHeight / 2;
+	vObj.position.y = vObjRatio * vObjHeight / 2;
 	update();
 }
 
 
-function setShadowFromGroundTruth(list, debug = false)
+function setLightFromMask(list, debug = false)
 {
+	var inputVector = prompt("Enter ground truth vector: ", "0 1 0").split(" ");
+	var groundTruth = new THREE.Vector3(inputVector[0], inputVector[1], inputVector[2]);
+
 	start = true;
+	var startTime = performance.now();
 	var origOpacity = shadowPlane.material.opacity;
 	shadowPlane.material.opacity = 1;
-	console.log("start");
+	//console.log("start");
 
 	var v1     = [];
 	var v2     = [];
@@ -668,9 +674,9 @@ function setShadowFromGroundTruth(list, debug = false)
 	var pos = vObj.geometry.toNonIndexed().attributes.position;
 	for (var i = 0; i < pos.count; i += 3)
 	{
-		var t1  = new THREE.Vector3().fromBufferAttribute(pos, i);
-		var t2  = new THREE.Vector3().fromBufferAttribute(pos, i + 1);
-		var t3  = new THREE.Vector3().fromBufferAttribute(pos, i + 2);
+		var t1 = new THREE.Vector3().fromBufferAttribute(pos, i);
+		var t2 = new THREE.Vector3().fromBufferAttribute(pos, i + 1);
+		var t3 = new THREE.Vector3().fromBufferAttribute(pos, i + 2);
 		v1.push(new THREE.Vector3((t1.x + t2.x + t3.x) / 3, (t1.y + t2.y + t3.y) / 3, (t1.z + t2.z + t3.z) / 3));
 	}
 
@@ -682,8 +688,8 @@ function setShadowFromGroundTruth(list, debug = false)
 		v1[i].z += vObj.position.z;
 
 		// elimina os pontos abaixo de 25% da altura do objeto virtual
-//		if (v1[i].y < vObjHeight / 4)
-//			v1.splice(i--, 1);
+		if (v1[i].y < vObjHeight / 4)
+			v1.splice(i--, 1);
 
 		if (debug)
 		{
@@ -693,7 +699,7 @@ function setShadowFromGroundTruth(list, debug = false)
 		}
 	}
 
-	console.log("get floor points");
+	//console.log("get floor points");
 
 	var w    = renderer.domElement.clientWidth;
 	var h    = renderer.domElement.clientHeight;
@@ -702,8 +708,9 @@ function setShadowFromGroundTruth(list, debug = false)
 	var m    = ((w > h) ? h : w) / 256.0;
 
 	// adquire conjunto de pontos a partir dos pontos 2d da sombra
+	//v1 = [vObj.position];
 	var k = 0;
-	while (k < list.length)
+	while (k < list.length)//2
 	{
 		x        = parseInt(list[k++]) * m + padw;
 		y        = parseInt(list[k++]) * m + padh;
@@ -716,7 +723,7 @@ function setShadowFromGroundTruth(list, debug = false)
 			v2.push(new THREE.Vector3((i[0].uv.x - 0.5) * sPlaneSize + shadowPlane.position.x, shadowPlane.position.y, (0.5 - i[0].uv.y) * sPlaneSize + shadowPlane.position.z));
 	}
 
-	console.log("shrink list");
+	//console.log("shrink list");
 
 	// reduz o tamanho da segunda lista
 	var t = 0.2;
@@ -725,7 +732,7 @@ function setShadowFromGroundTruth(list, debug = false)
 		for (var j = i + 1; j < v2.length; j++)
 			if (v2[i].distanceTo(v2[j]) < t)
 				v2.splice(j--, 1);
-	console.log(v2.length);
+	//console.log(v2.length);
 
 	if (debug)
 	{
@@ -737,7 +744,7 @@ function setShadowFromGroundTruth(list, debug = false)
 		}
 	}
 
-	console.log("combine");
+	//console.log("combine");
 
 	// liga os pontos
 	var v4 = [];
@@ -746,12 +753,12 @@ function setShadowFromGroundTruth(list, debug = false)
 		for (var j = 0; j < v2.length; j++)
 		{
 			var aux = v1[i].clone().sub(v2[j].clone());
-			var v   = aux.clone().normalize().multiplyScalar(3 * vObjHeight).add(v1[i].clone()); // quanto maior o escalar, mais longe fica a fonte de luz
+			var v   = aux.clone().normalize().multiplyScalar(3 * vObjRatio * vObjHeight).add(v1[i].clone()); // quanto maior o escalar, mais longe fica a fonte de luz
 			v4.push([v1[i], v2[j], v, aux, Math.atan2(aux.z, aux.x) * 180 / Math.PI + 180]);
 		}
 	}
 
-	console.log("sort");
+	//console.log("sort");
 
 	// ordena a lista
 	v4.sort(function(a, b)
@@ -759,7 +766,7 @@ function setShadowFromGroundTruth(list, debug = false)
 		return a[4] - b[4];
 	});
 
-	console.log(v4.length);
+	//console.log(v4.length);
 
 	// reduz o tamaho da lista final
 	/*
@@ -770,7 +777,7 @@ function setShadowFromGroundTruth(list, debug = false)
 	*/
 	v3 = v4;
 
-	console.log("compare");
+	//console.log("compare");
 
 	var mask = [];
 	for (var i = 0; i < 65536; i++)
@@ -791,18 +798,6 @@ function setShadowFromGroundTruth(list, debug = false)
 	rend.setClearColor(new THREE.Color('white'), 0);
 	rend.setSize(w, h);
 	rend.shadowMap.enabled = true;
-
-	var grid = 0;
-	while (Math.pow(++grid, 2) < v3.length);
-	var size = Math.max(grid * 256, 4096);
-	var sqr = Math.floor(size / grid);
-	size = Math.min(sqr * grid, 16384); // limite do chrome (area: 268.435.456 pixels) para o canvas. O limite do firefox é maior, entao esse valor serve para ambos
-	var canvas2 = document.createElement("canvas");
-	canvas2.width  = size;
-	canvas2.height = size;
-	var ctx2 = canvas2.getContext("2d");
-	ctx2.fillStyle = "black";
-	ctx2.fillRect(0, 0, size, size);
 
 	light.visible = true;
 	light.target = emptyObj;
@@ -826,16 +821,36 @@ function setShadowFromGroundTruth(list, debug = false)
 
 	var v5 = v3[k][2].clone().sub(v3[k][1]).normalize();
 	var alpha = 5 * Math.PI / 180;
+	//var alpha = Math.PI / 2;
+
+	//globalResult += "IoU 1st step: " + getRenderValue(v3[k][1], v3[k][2], mask).toFixed(5) + "\n";
+	//globalResult += "Angular deviation 1st step: " + (v3[k][2].angleTo(groundTruth) * 180 / Math.PI).toFixed(3) + "°\n";
+	console.log(v3[k]);
+	enhanceDirectionalLight(mask, mv, groundTruth, v5, v3[k], alpha, origOpacity, debug, vDebug, v3.length);
+	done = true;
+}
+
+
+function enhanceDirectionalLight(mask, mv, groundTruth, initialVector, objectPosition, alpha, origOpacity, debug, vDebug, v3len, first = true)
+{
+	var v3 = [];
+	for (var i = 0; i < 4; i++)
+		v3.push(objectPosition[0].clone());
+	v3.push(objectPosition[4]);
+	console.log(v3);
+	var v5 = initialVector;
 
 	// cria o mapa
-	console.log("map");
-	var ni =  50;
-	var nj = 360;
+	//console.log("map");
+	var ni = 65;
+	var nj = 513;
 	var si = alpha / ni;
 	var sj = Math.PI * 2 / nj;
 	var v7 = new THREE.Vector3(0, 1, 0).cross(v5);
 	var v8 = v5.clone();
 	var vl = [];
+	var maxRenderVal = 0;
+	var maxVec;
 	for (var i = 0; i < ni; i++)
 	{
 		v8.applyAxisAngle(v7, si);
@@ -844,13 +859,20 @@ function setShadowFromGroundTruth(list, debug = false)
 		for (var j = 0; j < nj; j++)
 		{
 			v8.applyAxisAngle(v5, sj);
-			var v9 = v8.clone().multiplyScalar(5).add(v3[k][1]);
-			vl[i].push([v9, getRenderValue(v3[k][1], v9, mask), (i / ni) * Math.cos(j * sj), (i / ni) * Math.sin(j * sj) * -1, 0]);
+			var v9 = v8.clone().multiplyScalar(5).add(v3[1]);
+			var renderVal = getRenderValue(v3[1], v9, mask);
+			vl[i].push([v9, renderVal, (i / ni) * Math.cos(j * sj), (i / ni) * Math.sin(j * sj) * -1, 0]);
+			if (renderVal > maxRenderVal)
+			{
+				maxVec = v9;
+				maxRenderVal = renderVal;
+			}
 		}
 	}
+	console.log(v3[1]);
 
 	// calcula a imagem integral
-	console.log("integral");
+	//console.log("integral");
 	vl[0][0][4] = vl[0][0][1];
 	for (var i = 1; i < vl[0].length; i++)
 		vl[0][i][4] = vl[0][i - 1][4] + vl[0][i][1];
@@ -862,17 +884,30 @@ function setShadowFromGroundTruth(list, debug = false)
 	}
 
 	// encontra o melhor ponto da calota esferica
-	console.log("cap");
+	//console.log("cap");
 	var div = false;
-	var res = findBestInSphere(div, mv, mask, vl, si, sj, ni, nj, v3[k][1], v5, alpha);
-	var v6 = res[0].multiplyScalar(5).add(v3[k][1]);
+	console.log(v3[1]);
+	var res = findBestInSphere(div, mv, mask, vl, si, sj, ni, nj, v3[1], v5, alpha);
+	var v6 = res[0].multiplyScalar(5).add(v3[1]);
 	light.position.set(v6.x, v6.y, v6.z);
 
 	// desenha o grafico
 	if (debug)
 	{
-		console.log("draw");
-//		console.log(res[3]);
+		var grid = 0;
+		while (Math.pow(++grid, 2) < v3len);
+		var size = Math.max(grid * 256, 4096);
+		var sqr = Math.floor(size / grid);
+		size = Math.min(sqr * grid, 16384); // limite do chrome (area: 268.435.456 pixels) para o canvas. O limite do firefox é maior, entao esse valor serve para ambos
+		var canvas2 = document.createElement("canvas");
+		canvas2.width  = size;
+		canvas2.height = size;
+		var ctx2 = canvas2.getContext("2d");
+		ctx2.fillStyle = "black";
+		ctx2.fillRect(0, 0, size, size);
+
+		//console.log("draw");
+		//console.log(res[3]);
 		var minVal = 1;
 		var maxVal = 0;
 		for (var i = 0; i < vl.length; i++)
@@ -887,7 +922,7 @@ function setShadowFromGroundTruth(list, debug = false)
 			}
 		}
 		canvas2.width  = 640;
-		canvas2.height = 732;
+		canvas2.height = 512;//732;
 		ctx2 = canvas2.getContext("2d", true, false, "srgb", true);
 		ctx2.fillStyle = "black";
 		ctx2.fillRect(0, 0, 640, 732);
@@ -901,6 +936,8 @@ function setShadowFromGroundTruth(list, debug = false)
 				}
 			}
 		}
+
+		res[3] = [];
 		ctx2.lineWidth = 2;
 		ctx2.strokeStyle = "#000000";
 		var rho, theta;
@@ -912,7 +949,7 @@ function setShadowFromGroundTruth(list, debug = false)
 			var y = vl[res[3][i][0]][res[3][i][1]][3] * 240;
 			var r = Math.sqrt(x * x + y * y);
 			var a = Math.atan2(y, x);
-			//console.log(x, y, r, a * 180 / Math.PI);
+			////console.log(x, y, r, a * 180 / Math.PI);
 			ctx2.beginPath();
 			ctx2.moveTo((r - rho) * Math.cos(a - theta) + 258, (r - rho) * Math.sin(a - theta) + 258);
 			ctx2.lineTo((r + rho) * Math.cos(a - theta) + 258, (r + rho) * Math.sin(a - theta) + 258);
@@ -927,10 +964,6 @@ function setShadowFromGroundTruth(list, debug = false)
 			ctx2.beginPath();
 			ctx2.arc(258, 258, r + rho, a - theta, a + theta);
 			ctx2.stroke();
-			/*
-				rho /= 2;
-				theta /= 2;
-			*/
 		}
 		for (var i = 0; i < res[3].length; i++)
 		{
@@ -985,7 +1018,7 @@ function setShadowFromGroundTruth(list, debug = false)
 		ctx2.fillText(mv.toFixed(3), 580, 512 - 450 * ((mv - minVal) / (maxVal - minVal)));
 		ctx2.fillText("chute",       580, 532 - 450 * ((mv - minVal) / (maxVal - minVal)));
 		ctx2.fillText("inicial",     580, 552 - 450 * ((mv - minVal) / (maxVal - minVal)));
-
+/*
 		var minImg = vl[0][0][1];
 		var maxImg = vl[0][0][1];
 		var minInt = vl[0][0][4];
@@ -1026,9 +1059,7 @@ function setShadowFromGroundTruth(list, debug = false)
 		ctx2.fillStyle = "blue";
 		ctx2.fillText(minImg.toFixed(3),  90, 602);
 		ctx2.fillText(minInt.toFixed(3),  90, 702);
-
-		light.position.set(v6.x, v6.y, v6.z);
-
+*/
 		// imprime o grafico
 		var link = document.getElementById('exportLink');
 		link.setAttribute('download', 'test.png');
@@ -1036,26 +1067,50 @@ function setShadowFromGroundTruth(list, debug = false)
 		link.click();
 
 		// cria objetos virtuais para facilitar a visualizacao
+		light.position.set(v6.x, v6.y, v6.z);
 		var pObj = new THREE.Mesh(new THREE.SphereGeometry(0.1), new THREE.MeshBasicMaterial({ color: 0xff0000 }));
 		var pLgt = new THREE.Mesh(new THREE.SphereGeometry(0.1), new THREE.MeshBasicMaterial({ color: 0xff0000 }));
 		var pFlr = new THREE.Mesh(new THREE.SphereGeometry(0.1), new THREE.MeshBasicMaterial({ color: 0xff0000 }));
-		pObj.position.set(v3[k][0].x, v3[k][0].y, v3[k][0].z);
-		pLgt.position.set(v3[k][2].x, v3[k][2].y, v3[k][2].z);
-		pFlr.position.set(v3[k][1].x, v3[k][1].y, v3[k][1].z);
+		pObj.position.set(v3[0].x, v3[0].y, v3[0].z);
+		pLgt.position.set(v3[2].x, v3[2].y, v3[2].z);
+		pFlr.position.set(v3[1].x, v3[1].y, v3[1].z);
 		scene2.add(pObj);
 		scene2.add(pLgt);
 		scene2.add(pFlr);
 		var geo = new THREE.Geometry();
-		geo.vertices.push(v3[k][2].clone());
-		geo.vertices.push(v3[k][1].clone());
+		geo.vertices.push(v3[2].clone());
+		geo.vertices.push(v3[1].clone());
 		scene2.add(new THREE.Line(geo, new THREE.LineBasicMaterial({ color: 0xffff00 })));
 		vObj.material.opacity = 0.75;
 		vObj.material.transparent = true;
 		for (var i = 0; i < vDebug.length; i++)
 			scene2.add(vDebug[i]);
 	}
-	shadowPlane.material.opacity = origOpacity;
-	done = true;
+
+//	if (first)
+//	{
+//		globalResult += "IoU 2nd step: " + getRenderValue(v3[1], res[0], mask).toFixed(5) + "\n";
+//		globalResult += "Angular deviation 2nd step: " + (res[0].angleTo(groundTruth) * 180 / Math.PI).toFixed(3) + "°\n";
+//	}
+	var newAlpha = alpha * 0.3;
+	if (newAlpha >= 1 && res[0].angleTo(groundTruth) > initialVector.angleTo(groundTruth))
+		enhanceDirectionalLight(mask, mv, groundTruth, res[0], objectPosition, newAlpha, origOpacity, debug, vDebug, v3len, false);
+	else
+	{
+		shadowPlane.material.opacity = origOpacity;
+		var endTime = performance.now();
+		//console.log(parseInt(endTime - startTime), mv, maxRenderVal, res[0].angleTo(maxVec) * 180 / Math.PI);
+//		globalResult += "IoU last step: " + getRenderValue(v3[1], res[0], mask).toFixed(5) + "\n";
+//		globalResult += "Angular deviation last step: " + (res[0].angleTo(groundTruth) * 180 / Math.PI).toFixed(3) + "°\n";
+//		console.log(globalResult + "\nVector last step: " + maxVec.x + " " + maxVec.y + " " + maxVec.z);
+		var str = "";
+		str += "IoU: " + getRenderValue(v3[1], res[0].clone(), mask).toFixed(5) + "\n";
+		str += "Angle: " + (res[0].angleTo(groundTruth) * 180 / Math.PI).toFixed(3) + "°\n";
+		str += "Found vector: " + res[0].x + " " + res[0].y + " " + res[0].z + "\n";
+		str += "Best vector: " + maxVec.x + " " + maxVec.y + " " + maxVec.z + "\n";
+		console.log(str);
+		globalResult = "";
+	}
 }
 
 
@@ -1118,7 +1173,7 @@ function shrinkList(list, t)
 	if (n <= t)
 		return list;
 	var step = n / t;
-	console.log(n, step);
+	//console.log(n, step);
 	var list2 = [];
 	for (var i = 0; i < n - step; i += step)
 		list2.push(list[Math.floor(i)]);
@@ -1135,8 +1190,9 @@ function shrinkList(list, t)
 
 
 //
-function findBestInSphere(extra, best, mask, map, ii, jj, ni, nj, ori, v0, alpha, beta = Math.PI, theta = 0, p0 = v0.clone(), prev = 0, maxRec = 10, depth = 1, first = true, path = [])
+function findBestInSphere(extra, best, mask, map, ii, jj, ni, nj, ori, v0, alpha, beta = Math.PI, theta = 0, p0 = v0.clone(), prev = 0, maxRec = 20, depth = 1, first = true, path = [])
 {
+//	return [p0, 0, 0, [], 0];
 	var p = [];
 /*
 	if (first)
@@ -1275,8 +1331,8 @@ function findBestInSphere(extra, best, mask, map, ii, jj, ni, nj, ori, v0, alpha
 			else
 				t1++;
 		}
-		var ar = Math.min(Math.round((r0 + r1) / 2), ni - 1);
-		var at = Math.min(Math.round((t0 + t1) / 2) + (t0 > t1 ? nj / 2 : 0), nj - 1);
+		var ar = Math.max(0, Math.min(Math.round((r0 + r1) / 2), ni - 1));
+		var at = Math.max(0, Math.min(Math.round((t0 + t1) / 2) + (t0 > t1 ? nj / 2 : 0), nj - 1));
 
 		var lMax = 0;
 		if (t0 > t1)
@@ -1356,23 +1412,25 @@ function findBestInSphere(extra, best, mask, map, ii, jj, ni, nj, ori, v0, alpha
 					res[i][8] += map[ri][ti][1];
 			}
 		}*/
-		var mr, mt;
+		var mr, mt, cm = 0;
 		if (t0 > t1)
 		{
 			for (var j = r0; j <= r1; j++)
 			{
 				for (var k = 0; k < t1; k++)
 				{
-					if (lMax == map[j][k][1])
+					if (map[j][k][1] > cm)
 					{
+						cm = map[j][k][1];
 						mr = j;
 						mt = k;
 					}
 				}
 				for (var k = t0 + 1; k < nj; k++)
 				{
-					if (lMax == map[j][k][1])
+					if (map[j][k][1] > cm)
 					{
+						cm = map[j][k][1];
 						mr = j;
 						mt = k;
 					}
@@ -1385,42 +1443,15 @@ function findBestInSphere(extra, best, mask, map, ii, jj, ni, nj, ori, v0, alpha
 			{
 				for (var k = t0; k <= t1; k++)
 				{
-					if (lMax == map[j][k][1])
+					if (map[j][k][1] > cm)
 					{
+						cm = map[j][k][1];
 						mr = j;
 						mt = k;
 					}
 				}
 			}
 		}
-//		console.log(lMax, mr, mt);
-/*		for (var ri = r0; ri < r1; ri++)
-		{
-			if (t0 > t1)
-			{
-				for (var ti = t0; (ti % nj) != t1 + 1; ti++)
-				{
-					if (map[ri][ti % nj][1] > mv)
-					{
-						mv = map[ri][ti % nj][1];
-						mr = ri;
-						mt = ti % nj;
-					}
-				}
-			}
-			else
-			{
-				for (var ti = t0; ti < t1; ti++)
-				{
-					if (map[ri][ti][1] > mv)
-					{
-						mv = map[ri][ti][1];
-						mr = ri;
-						mt = ti;
-					}
-				}
-			}
-		}*/
 		list.push([p[i], val * lMax, i, ar, at, mr, mt]);
 	}
 	list.sort(function(a, b)
@@ -1437,8 +1468,8 @@ function findBestInSphere(extra, best, mask, map, ii, jj, ni, nj, ori, v0, alpha
 			str += res[first ? 2 * i : i][j].toString() + ", ";
 		str += res[first ? 2 * i : i][8] + "\n";
 	}*/
-//	console.log(str);
-	console.log(res[list[0][2]]);//, sum, sum - res[list[0][2]][8]);
+//	//console.log(str);
+//	//console.log(res[list[0][2]]);//, sum, sum - res[list[0][2]][8]);
 	if (!first)
 	{
 		switch (list[0][2])
@@ -1458,22 +1489,14 @@ function findBestInSphere(extra, best, mask, map, ii, jj, ni, nj, ori, v0, alpha
 	}
 	else
 		theta = list[0][2] * Math.PI / (extra ? 4 : 2) + Math.PI / 4;
-	path.push([list[0][3], list[0][4], list[0][5], list[0][6], depth]);
+	path.push([parseInt(list[0][3]), parseInt(list[0][4]), parseInt(list[0][5]), parseInt(list[0][6]), depth]);
 
-	// condicao de parada: se nao houver candidato melhor que a recursao anterior E ja atingiu um candidato melhor que o original
-	// condicao de parada: atingiu o maximo de recursoes (100)
-	if (maxRec == 0 || list[0][1] == 0)// || prev > best)
-	{
-		//console.log(((100 - 100 * prev / best) * -1).toFixed(3), prev.toFixed(5), best.toFixed(5), map[path[path.length - 1][0]][path[path.length - 1][1]][1].toFixed(5));
-		return [p0, list[0][3], list[0][4], path, list[0][1]];
-	}
-
-	if (maxRec > 8)
+	if (maxRec > 12)
 	{
 		var l = [];
 		for (var i = 0; i < (extra ? 8 : 4); i++)
 		{
-			path.push([list[i][3], list[i][4], list[i][5], list[i][6], depth]);
+			path.push([parseInt(list[i][3]), parseInt(list[i][4]), parseInt(list[i][5]), parseInt(list[i][6]), depth]);
 			var t = theta;
 			switch (list[0][2])
 			{
@@ -1505,7 +1528,7 @@ function findBestInSphere(extra, best, mask, map, ii, jj, ni, nj, ori, v0, alpha
 			}
 			if (first)
 				t = list[i][2] * Math.PI / (extra ? 4 : 2) + Math.PI / 4;
-			l.push(findBestInSphere(extra, best, mask, map, ii, jj, ni, nj, ori, v0, alpha / 2, beta / 2, t, list[i][0], list[i][1], maxRec - 1, depth + 1, false, path));
+			l.push(findBestInSphere(extra, best, mask, map, ii, jj, ni, nj, ori, v0, alpha / 2, beta / 2, t, list[i][0], res[list[i][2]][4], maxRec - 1, depth + 1, false, path));
 		}
 		l.sort(function(a, b)
 		{
@@ -1514,7 +1537,20 @@ function findBestInSphere(extra, best, mask, map, ii, jj, ni, nj, ori, v0, alpha
 		return l[0];
 	}
 	else
-		return findBestInSphere(extra, best, mask, map, ii, jj, ni, nj, ori, v0, alpha / 2, beta / 2, theta, list[0][0], list[0][1], maxRec - 1, depth + 1, false, path);
+	{
+		// condicao de parada: se nao houver candidato melhor que a recursao anterior E ja atingiu um candidato melhor que o original
+		// condicao de parada: atingiu o maximo de recursoes
+		if (maxRec == 0 || prev >= res[list[0][2]][4])
+		{
+			////console.log(((100 - 100 * prev / best) * -1).toFixed(3), prev.toFixed(5), best.toFixed(5), map[path[path.length - 1][0]][path[path.length - 1][1]][1].toFixed(5));
+			if (res[list[0][2]][4] > best)
+				return [p0, list[0][3], list[0][4], path, list[0][1]];
+			else
+				return [ori, 0, 0, [], 0];
+		}
+		else
+			return findBestInSphere(extra, best, mask, map, ii, jj, ni, nj, ori, v0, alpha / 2, beta / 2, theta, list[0][0], res[list[0][2]][4], maxRec - 1, depth + 1, false, path);
+	}
 }
 
 
@@ -1585,7 +1621,7 @@ function teste()
 }
 
 
-function findShadow(debug = false)
+function setNewLightVector(debug = false)
 {
 //	var inpt = prompt("Ponto 2D:");
 	var inpt = contours[fc];
@@ -1609,9 +1645,9 @@ function findShadow(debug = false)
 		wObj.visible         = true;
 		wPlane.visible       = true;
 
-		setShadowFromGroundTruth(list, debug);
+		setLightFromMask(list, debug);
 //		setShadowFromSimilarity(list);
-		console.log("done!");
+		//console.log("done!");
 
 		hlObj.visible        = false;
 		hlPoint.visible      = false;
@@ -1640,7 +1676,7 @@ function onDocumentMouseDown(event)
 		case 0: // left
 			if (++fc >= files.length)
 				fc = 0;
-			console.log(fc, files[fc]);
+			//console.log(files[fc]);
 			arToolkitSource = new THREEx.ArToolkitSource({ sourceType: 'image', sourceUrl: 'my-images/current/' + files[fc] });
 			arToolkitSource.init(function onReady(){ onResize() });
 			light.visible = false;
@@ -1648,11 +1684,11 @@ function onDocumentMouseDown(event)
 			break;
 
 		case 1: // middle
-			findShadow(true);
+			setNewLightVector(true);
 			break;
 
 		case 2: // right
-			findShadow();
+			setNewLightVector();
 			break;
 	}
 }
@@ -1673,13 +1709,13 @@ function onDocumentKeyDown(event)
 	switch (event.which)
 	{
 		case 32: // Espaco
-			setShadowFromGroundTruth(contours[fc].split(" "), true);
+			setLightFromMask(contours[fc].split(" "), true);
 			break;
 
 		case 90: // Z
 			if (--fc < 0)
 				fc = files.length - 1;
-			console.log(fc, files[fc]);
+			//console.log(fc, files[fc]);
 			arToolkitSource = new THREEx.ArToolkitSource({ sourceType: 'image', sourceUrl: 'my-images/current/' + files[fc] });
 			arToolkitSource.init(function onReady(){ onResize() });
 			light.visible = false;
@@ -1687,13 +1723,13 @@ function onDocumentKeyDown(event)
 			break;
 
 		case 88: // X
-			findShadow();
+			setNewLightVector();
 			break;
 
 		case 67: // C
 			if (++fc >= files.length)
 				fc = 0;
-			console.log(fc, files[fc]);
+			//console.log(fc, files[fc]);
 			arToolkitSource = new THREEx.ArToolkitSource({ sourceType: 'image', sourceUrl: 'my-images/current/' + files[fc] });
 			arToolkitSource.init(function onReady(){ onResize() });
 			light.visible = false;
@@ -1701,7 +1737,7 @@ function onDocumentKeyDown(event)
 			break;
 
 		default:
-			//console.log(event.which);
+			////console.log(event.which);
 	}
 }
 
