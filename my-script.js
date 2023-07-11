@@ -158,7 +158,7 @@ function initialize()
 	sPlaneSize     =  15.00;
 	sPlaneSegments = 300.00;
 	vObjHeight     =   1.20;
-	vObjRatio      =   2.00;
+	vObjRatio      =   1.00;
 	adjustX        =   0.00;
 	adjustZ        =   0.00;
 
@@ -1770,6 +1770,10 @@ function update()
 	scene2.rotation.y = scene1.rotation.y;
 	scene2.rotation.z = scene1.rotation.z;
 	scene2.visible    = scene1.visible;
+
+	vObj.rotation.y = vObj.rotation.y + 0.0031416;
+	if (vObj.rotation.y > 2 * Math.PI)
+		vObj.rotation.y = 0;
 
 	// update artoolkit every frame
 	if (arToolkitSource.ready !== false)
