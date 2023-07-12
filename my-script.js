@@ -781,16 +781,26 @@ function setLightFromMask(list, debug = false)
 
 	var mask = [];
 	for (var i = 0; i < 65536; i++)
-		mask[i] = 1;
+		mask.push(1);
 	for (var i = 0; i < list.length; i += 2)
 		mask[parseInt(list[i]) + parseInt(list[i + 1]) * 256] = 0;
-
+/*
+	maskString = "";
+	for (var i = 0; i < 256; i++)
+	{
+		for (var j = 0; j < 256; j++)
+			maskString += ((mask[i * 256 + j] == 1) ? " " : "0");
+		maskString += "\n";
+	}
+	console.log(maskString);
+*/
+/*
 	var canvas = document.createElement("canvas");
 	canvas.width  = 256;
 	canvas.height = 256;
 	var ctx = canvas.getContext("2d");
 	ctx.fillStyle = "white";
-
+*/
 	rend = new THREE.WebGLRenderer({
 		preserveDrawingBuffer: true,
 		antialias: true
@@ -820,12 +830,9 @@ function setLightFromMask(list, debug = false)
 	emptyObj.position.set(v3[k][1].x, v3[k][1].y, v3[k][1].z);
 
 	var v5 = v3[k][2].clone().sub(v3[k][1]).normalize();
-	var alpha = 5 * Math.PI / 180;
+	var alpha = 6 * Math.PI / 180;
 	//var alpha = Math.PI / 2;
 
-	//globalResult += "IoU 1st step: " + getRenderValue(v3[k][1], v3[k][2], mask).toFixed(5) + "\n";
-	//globalResult += "Angular deviation 1st step: " + (v3[k][2].angleTo(groundTruth) * 180 / Math.PI).toFixed(3) + "°\n";
-	console.log(v3[k]);
 	enhanceDirectionalLight(mask, mv, groundTruth, v5, v3[k], alpha, origOpacity, debug, vDebug, v3.length);
 	done = true;
 }
@@ -837,7 +844,6 @@ function enhanceDirectionalLight(mask, mv, groundTruth, initialVector, objectPos
 	for (var i = 0; i < 4; i++)
 		v3.push(objectPosition[0].clone());
 	v3.push(objectPosition[4]);
-	console.log(v3);
 	var v5 = initialVector;
 
 	// cria o mapa
@@ -850,7 +856,7 @@ function enhanceDirectionalLight(mask, mv, groundTruth, initialVector, objectPos
 	var v8 = v5.clone();
 	var vl = [];
 	var maxRenderVal = 0;
-	var maxVec;
+	var maxVec;// = v8.clone().multiplyScalar(5).add(v3[1]);
 	for (var i = 0; i < ni; i++)
 	{
 		v8.applyAxisAngle(v7, si);
@@ -869,7 +875,6 @@ function enhanceDirectionalLight(mask, mv, groundTruth, initialVector, objectPos
 			}
 		}
 	}
-	console.log(v3[1]);
 
 	// calcula a imagem integral
 	//console.log("integral");
@@ -886,7 +891,6 @@ function enhanceDirectionalLight(mask, mv, groundTruth, initialVector, objectPos
 	// encontra o melhor ponto da calota esferica
 	//console.log("cap");
 	var div = false;
-	console.log(v3[1]);
 	var res = findBestInSphere(div, mv, mask, vl, si, sj, ni, nj, v3[1], v5, alpha);
 	var v6 = res[0].multiplyScalar(5).add(v3[1]);
 	light.position.set(v6.x, v6.y, v6.z);
@@ -1556,30 +1560,37 @@ function findBestInSphere(extra, best, mask, map, ii, jj, ni, nj, ori, v0, alpha
 
 function getRenderValue(v0, v1, mask)
 {
-	var canvas = document.createElement("canvas");
-	canvas.width  = 256;
-	canvas.height = 256;
-	var ctx = canvas.getContext("2d");
-	ctx.fillStyle = "white";
-
-	var w    = renderer.domElement.clientWidth;
-	var h    = renderer.domElement.clientHeight;
+	var w  = renderer.domElement.clientWidth;
+	var h  = renderer.domElement.clientHeight;
+	var cw = (w > h) ? Math.floor((w / h) * 256) : 256;
+	var ch = (h > w) ? Math.floor((h / w) * 256) : 256;
+	var pw = Math.floor((cw - 256) / 2);
+	var ph = Math.floor((ch - 256) / 2);
 	var padw = (w > h) ? Math.floor((w - h) / 2.0) : 0;
 	var padh = (h > w) ? Math.floor((h - w) / 2.0) : 0;
+
+	var canvas = document.createElement("canvas");
+	canvas.width  = cw;
+	canvas.height = ch;
+	var ctx = canvas.getContext("2d");
+	ctx.fillStyle = "white";
 
 	light.position.set(v1.x, v1.y, v1.z);
 	emptyObj.position.set(v0.x, v0.y, v0.z);
 	rend.render(mainScene2, camera);
-	ctx.fillRect(0, 0, 256, 256);
-	ctx.drawImage(rend.domElement, padw, padh, w - padw * 2, h - padh * 2, 0, 0, 256, 256);
+	ctx.fillRect(0, 0, cw, ch);
+	//ctx.drawImage(rend.domElement, padw, padh, w - padw * 2, h - padh * 2, 0, 0, 256, 256);
+	ctx.drawImage(rend.domElement, 0, 0, w, h, 0, 0, cw, ch);
 	var c00 = 0;
 	var c01 = 0;
 	var c10 = 0;
 	var c11 = 0;
-	var d   = ctx.getImageData(0, 0, 256, 256);
+	var img = ctx.getImageData(pw, ph, 256, 256);
+//	console.log(ctx.getImageData(0, 0, cw, ch).data);
+//	console.log(cw, ch, pw, ph);
 	for (var j = 0; j < 65536; j++)
 	{
-		var c = (d.data[j * 4] == 255) ? 1 : 0;
+		var c = (img.data[j * 4] == 255) ? 1 : 0;
 		if (c == 0 && mask[j] == 0)
 			c00++;
 		else if (c == 0 && mask[j] == 1)
@@ -1589,11 +1600,33 @@ function getRenderValue(v0, v1, mask)
 		else
 			c11++;
 	}
+
+	var img1, img2;
+	if (w > h)
+	{
+		img1 = ctx.getImageData(0, 0, pw, 256);
+		img2 = ctx.getImageData(cw - pw, 0, pw, 256);
+		n = pw * 256;
+	}
+	else
+	{
+		img1 = ctx.getImageData(0, 0, 256, ph);
+		img2 = ctx.getImageData(0, ch - ph, 256, ph);
+		n = ph * 256;
+	}
+	for (var j = 0; j < n; j++)
+	{
+		if (img1.data[j * 4] == 0)
+			c01++;
+		if (img2.data[j * 4] == 0)
+			c01++;
+	}
+
 	var val = 0;
 	var uni = c00 + c01 + c10;
 	var ins = c00;
 	if (uni > 0)
-		val = parseFloat(ins) / uni;
+		val = parseFloat(ins) / parseFloat(uni);
 	return val;
 }
 
@@ -1770,11 +1803,12 @@ function update()
 	scene2.rotation.y = scene1.rotation.y;
 	scene2.rotation.z = scene1.rotation.z;
 	scene2.visible    = scene1.visible;
-
+/*
+	// para testes
 	vObj.rotation.y = vObj.rotation.y + 0.0031416;
 	if (vObj.rotation.y > 2 * Math.PI)
 		vObj.rotation.y = 0;
-
+*/
 	// update artoolkit every frame
 	if (arToolkitSource.ready !== false)
 		arToolkitContext.update(arToolkitSource.domElement);
