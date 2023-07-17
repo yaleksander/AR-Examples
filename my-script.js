@@ -158,7 +158,7 @@ function initialize()
 	sPlaneSize     =  15.00;
 	sPlaneSegments = 300.00;
 	vObjHeight     =   1.20;
-	vObjRatio      =   1.00;
+	vObjRatio      =   1.25;
 	adjustX        =   0.00;
 	adjustZ        =   0.00;
 
@@ -647,9 +647,10 @@ function setScene(id)
 }
 
 
-function setLightFromMask(list, debug = false)
+function setLightFromMask(list, debug = false, inputVector = [])
 {
-	var inputVector = prompt("Enter ground truth vector: ", "0 1 0").split(" ");
+	if (!inputVector.length)
+		inputVector = prompt("Enter ground truth vector: ", "0 1 0").split(" ");
 	var groundTruth = new THREE.Vector3(inputVector[0], inputVector[1], inputVector[2]);
 
 	start = true;
@@ -688,8 +689,8 @@ function setLightFromMask(list, debug = false)
 		v1[i].z += vObj.position.z;
 
 		// elimina os pontos abaixo de 25% da altura do objeto virtual
-		if (v1[i].y < vObjHeight / 4)
-			v1.splice(i--, 1);
+		//if (v1[i].y < vObjHeight / 4)
+		//	v1.splice(i--, 1);
 
 		if (debug)
 		{
@@ -727,7 +728,7 @@ function setLightFromMask(list, debug = false)
 
 	// reduz o tamanho da segunda lista
 	var t = 0.2;
-	if (debug)
+	//if (debug)
 	for (var i = 0; i < v2.length - 1; i++)
 		for (var j = i + 1; j < v2.length; j++)
 			if (v2[i].distanceTo(v2[j]) < t)
@@ -848,8 +849,8 @@ function enhanceDirectionalLight(mask, mv, groundTruth, initialVector, objectPos
 
 	// cria o mapa
 	//console.log("map");
-	var ni = 65;
-	var nj = 513;
+	var ni = 51//65;
+	var nj = 51//513;
 	var si = alpha / ni;
 	var sj = Math.PI * 2 / nj;
 	var v7 = new THREE.Vector3(0, 1, 0).cross(v5);
@@ -896,7 +897,7 @@ function enhanceDirectionalLight(mask, mv, groundTruth, initialVector, objectPos
 	light.position.set(v6.x, v6.y, v6.z);
 
 	// desenha o grafico
-	if (debug)
+	if (first)
 	{
 		var grid = 0;
 		while (Math.pow(++grid, 2) < v3len);
@@ -1064,31 +1065,35 @@ function enhanceDirectionalLight(mask, mv, groundTruth, initialVector, objectPos
 		ctx2.fillText(minImg.toFixed(3),  90, 602);
 		ctx2.fillText(minInt.toFixed(3),  90, 702);
 */
-		// imprime o grafico
-		var link = document.getElementById('exportLink');
-		link.setAttribute('download', 'test.png');
-		link.setAttribute('href', canvas2.toDataURL("image/png").replace("image/png", "image/octet-stream"));
-		link.click();
+		if (debug)
+		{
+			// imprime o grafico
+			var link = document.getElementById('exportLink');
+			link.setAttribute('download', (fc < 9 ? "0" : "") + (fc + 1).toString() + '_sc.png');
+			link.setAttribute('href', canvas2.toDataURL("image/png").replace("image/png", "image/octet-stream"));
+			link.click();
 
-		// cria objetos virtuais para facilitar a visualizacao
-		light.position.set(v6.x, v6.y, v6.z);
-		var pObj = new THREE.Mesh(new THREE.SphereGeometry(0.1), new THREE.MeshBasicMaterial({ color: 0xff0000 }));
-		var pLgt = new THREE.Mesh(new THREE.SphereGeometry(0.1), new THREE.MeshBasicMaterial({ color: 0xff0000 }));
-		var pFlr = new THREE.Mesh(new THREE.SphereGeometry(0.1), new THREE.MeshBasicMaterial({ color: 0xff0000 }));
-		pObj.position.set(v3[0].x, v3[0].y, v3[0].z);
-		pLgt.position.set(v3[2].x, v3[2].y, v3[2].z);
-		pFlr.position.set(v3[1].x, v3[1].y, v3[1].z);
-		scene2.add(pObj);
-		scene2.add(pLgt);
-		scene2.add(pFlr);
-		var geo = new THREE.Geometry();
-		geo.vertices.push(v3[2].clone());
-		geo.vertices.push(v3[1].clone());
-		scene2.add(new THREE.Line(geo, new THREE.LineBasicMaterial({ color: 0xffff00 })));
+			// cria objetos virtuais para facilitar a visualizacao
+			light.position.set(v6.x, v6.y, v6.z);
+			var pObj = new THREE.Mesh(new THREE.SphereGeometry(0.1), new THREE.MeshBasicMaterial({ color: 0xff0000 }));
+			var pLgt = new THREE.Mesh(new THREE.SphereGeometry(0.1), new THREE.MeshBasicMaterial({ color: 0xff0000 }));
+			var pFlr = new THREE.Mesh(new THREE.SphereGeometry(0.1), new THREE.MeshBasicMaterial({ color: 0xff0000 }));
+			pObj.position.set(v3[0].x, v3[0].y, v3[0].z);
+			pLgt.position.set(v3[2].x, v3[2].y, v3[2].z);
+			pFlr.position.set(v3[1].x, v3[1].y, v3[1].z);
+			//scene2.add(pObj);
+			//scene2.add(pLgt);
+			//scene2.add(pFlr);
+			var geo = new THREE.Geometry();
+			geo.vertices.push(v3[2].clone());
+			geo.vertices.push(v3[1].clone());
+			//scene2.add(new THREE.Line(geo, new THREE.LineBasicMaterial({ color: 0xffff00 })));
+			for (var i = 0; i < vDebug.length; i++)
+				scene2.add(vDebug[i]);
+		}
+
 		vObj.material.opacity = 0.75;
 		vObj.material.transparent = true;
-		for (var i = 0; i < vDebug.length; i++)
-			scene2.add(vDebug[i]);
 	}
 
 //	if (first)
@@ -1654,7 +1659,7 @@ function teste()
 }
 
 
-function setNewLightVector(debug = false)
+function setNewLightVector(debug = false, inputVector = [])
 {
 //	var inpt = prompt("Ponto 2D:");
 	var inpt = contours[fc];
@@ -1678,7 +1683,7 @@ function setNewLightVector(debug = false)
 		wObj.visible         = true;
 		wPlane.visible       = true;
 
-		setLightFromMask(list, debug);
+		setLightFromMask(list, debug, inputVector);
 //		setShadowFromSimilarity(list);
 		//console.log("done!");
 
@@ -1719,10 +1724,35 @@ function onDocumentMouseDown(event)
 		case 1: // middle
 			setNewLightVector(true);
 			break;
-
+/*
 		case 2: // right
-			setNewLightVector();
+
+			var inputVector = prompt("Enter ground truth vector list: ").split("\n");
+			fc = 0;
+			while (fc < files.length)
+			{
+				arToolkitSource = new THREEx.ArToolkitSource({ sourceType: 'image', sourceUrl: 'my-images/current/' + files[fc] });
+				arToolkitSource.init(function onReady(){ onResize() });
+				light.visible = false;
+				update();
+				done = false;
+				setTimeout(setNewLightVector(true, inputVector[fc].split(" ")), 4000);
+				while (!done);
+				var canvas = document.createElement("canvas");
+				canvas.width  = renderer.domElement.clientWidth;
+				canvas.height = renderer.domElement.clientHeight;
+				var ctx = canvas.getContext("2d");
+				rend.render(mainScene2, camera);
+				ctx.drawImage(rend.domElement, 0, 0);
+				var link = document.getElementById('exportLink');
+				link.setAttribute('download', (fc < 9 ? "0" : "") + (fc + 1).toString() + '_rend.png');
+				link.setAttribute('href', canvas.toDataURL("image/png").replace("image/png", "image/octet-stream"));
+				link.click();
+				fc++;
+			}
+			fc = 0;
 			break;
+*/
 	}
 }
 
