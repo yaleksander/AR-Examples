@@ -1,4 +1,4 @@
-var scene, camera, renderer, size, height, material, geometry, light, plane, next, box, obj, m, g;
+var scene, camera, renderer, size, height, material, geometry, light, plane, color, texture, next, box, obj, m, g;
 var raycaster = new THREE.Raycaster();
 var pointer = new THREE.Vector2();
 
@@ -8,7 +8,8 @@ animate();
 function initialize()
 {
 	scene = new THREE.Scene();
-	scene.background = new THREE.Color(0xbbbbbb);
+	color = new THREE.Color(0xbbbbbb);
+	scene.background = color;
 	camera = new THREE.PerspectiveCamera(30, window.innerWidth / window.innerHeight, 0.1, 1000);
 	var loader = new THREE.TextureLoader();
 	camera.position.set(4, 6, 8);
@@ -47,6 +48,8 @@ function initialize()
 
 	plane = new THREE.Mesh(new THREE.PlaneGeometry(50, 50), new THREE.ShadowMaterial());
 	plane.receiveShadow = true;
+	plane.transparent = true;
+	plane.material.opacity = 0.75;
 	marker = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshPhongMaterial({map: loader.load("my-images/kanji.png")}));
 	plane.rotation.set(-Math.PI / 2, 0, 0);
 	plane.position.set(0, 0, -15);
@@ -56,7 +59,7 @@ function initialize()
 	scene.add(marker);
 
 	material = [];
-	material.push(new THREE.MeshPhongMaterial({map: loader.load("my-textures/face/asphalt.png")}));
+	material.push(new THREE.MeshPhongMaterial({map: loader.load("my-textures/face/steel.png")}));
 	material.push(new THREE.MeshPhongMaterial({map: loader.load("my-textures/face/concrete.png")}));
 	material.push(new THREE.MeshPhongMaterial({map: loader.load("my-textures/face/marble.png")}));
 	material.push(new THREE.MeshPhongMaterial({map: loader.load("my-textures/face/wood.png")}));
@@ -64,7 +67,7 @@ function initialize()
 	material.push(new THREE.MeshNormalMaterial());
 
 	geometry = [];
-	geometry.push(new THREE.BoxGeometry(1, 1, 1));
+	geometry.push(new THREE.BoxGeometry(1, 1, 1, 15, 15, 15));
 	geometry.push(new THREE.BoxGeometry(1, 2, 1));
 	geometry.push(new THREE.BoxGeometry(1, 3, 1));
 	geometry.push(new THREE.BoxGeometry(2, 2, 2));
@@ -79,6 +82,10 @@ function initialize()
 	g = 0;
 	m = 0;
 	obj = [];
+	texture = loader.load("my-textures/face/stone.jpg");
+	texture.repeat.set(4, 3);
+	texture.wrapS = THREE.RepeatWrapping;
+	texture.wrapT = THREE.RepeatWrapping;
 	next = new THREE.Mesh(geometry[g], material[m]);
 	box = new THREE.Mesh(geometry[0], material[3]);
 	box.position.set(marker.position.x, marker.position.y + 0.5, marker.position.z);
@@ -170,6 +177,10 @@ function onKeyDown(event)
 			console.log(light.position.clone().sub(marker.position.clone()));
 		}
 	}
+	else if (event.key == "-")
+		scene.background = color;
+	else if (event.key == "+")
+		scene.background = texture;
 }
 
 function onScrollWheel(event)
