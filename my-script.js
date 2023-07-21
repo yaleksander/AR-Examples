@@ -158,7 +158,7 @@ function initialize()
 	sPlaneSize     =  15.00;
 	sPlaneSegments = 300.00;
 	vObjHeight     =   1.20;
-	vObjRatio      =   1.25;
+	vObjRatio      =   1.00;
 	adjustX        =   0.00;
 	adjustZ        =   0.00;
 
