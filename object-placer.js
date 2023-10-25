@@ -125,7 +125,10 @@ function onPointerMove(event)
 	{
 		var p = intersects[0].point;
 		next.position.set(p.x, p.y + height[g], p.z);
-		next.visible = true;
+		if (marker.position.distanceTo(next.position) > 10)
+			next.visible = false;
+		else
+			next.visible = true;
 	}
 	else
 		next.visible = false;
