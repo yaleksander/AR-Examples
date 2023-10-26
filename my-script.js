@@ -313,15 +313,15 @@ function getMidPoints(p, t, r) // p: pontos, t: tolerancia, r: recursoes
 }
 
 
-function beginMethod(list, debug, inputVector, threshold, rho, theta, alpha, subMax, recMax)
+function beginMethod(list, debug, inputVector, threshold, rho, theta, alpha, recMax, subMax)
 {
+	console.log("Parameters:", alpha, recMax, subMax);
+
 	var groundTruth = new THREE.Vector3(inputVector[0], inputVector[1], inputVector[2]);
 
 	var startTime = performance.now();
 	var origOpacity = shadowPlane.material.opacity;
 	shadowPlane.material.opacity = 1;
-
-	console.log("Start!");
 
 	var v1 = [];
 	var v2 = [];
@@ -466,6 +466,13 @@ function beginMethod(list, debug, inputVector, threshold, rho, theta, alpha, sub
 	alpha *= Math.PI / 180;
 
 	mainMethod(mask, mv, groundTruth, v5.normalize(), v3[k][1], alpha, alpha, origOpacity, debug, v3.length, rho, theta, subMax, recMax);
+
+	var endTime = performance.now();
+	var dt = endTime - startTime;
+	var minutes = Math.floor(dt / 60000);
+	var seconds = Math.floor((dt - minutes * 60000) / 1000);
+	var miliseconds = dt - minutes * 60000 - seconds * 1000;
+	console.log("00:" + (minutes > 9 ? "" : "0") + minutes + ":" + (seconds > 9 ? "" : "0") + seconds + "," + (miliseconds > 99 ? "" : (miliseconds > 9 ? "0" : "00")) +  + Math.round(miliseconds));
 	done = true;
 }
 
@@ -473,7 +480,7 @@ function beginMethod(list, debug, inputVector, threshold, rho, theta, alpha, sub
 function mainMethod(mask, mv, groundTruth, initialVector, objectPosition, alpha, opAlpha, origOpacity, debug, v3len, rho = 257, theta = 257, subMax = 1, recMax = 1, depth = 1)
 {
 	var v5 = initialVector.normalize();
-	console.log("Main method! Depth: " + depth.toString() + "; vector: [" + v5.x.toFixed(3) + ", " + v5.y.toFixed(3) + ", " + v5.z.toFixed(3) + "]; previous IoU: " + getRenderValue(objectPosition, v5.clone().multiplyScalar(5).add(objectPosition), mask).toFixed(5) + "; alpha: " + (alpha * 180 / Math.PI).toFixed(3));
+	//console.log("Main method! Depth: " + depth.toString() + "; vector: [" + v5.x.toFixed(3) + ", " + v5.y.toFixed(3) + ", " + v5.z.toFixed(3) + "]; previous IoU: " + getRenderValue(objectPosition, v5.clone().multiplyScalar(5).add(objectPosition), mask).toFixed(5) + "; alpha: " + (alpha * 180 / Math.PI).toFixed(3));
 
 	// cria o mapa
 	//console.log("map");
@@ -528,21 +535,22 @@ function mainMethod(mask, mv, groundTruth, initialVector, objectPosition, alpha,
 	vObj.material.transparent = true;
 
 	if (debug)
-		drawCap(vl, mv, rho, theta, depth, recMax, 0, subMax, opAlpha);
+		drawCap(vl, rho, theta, depth, recMax, 0, subMax, opAlpha);
 
-	var newAlpha = alpha * 0.71167; // Math.sqrt(Math.pow(1 - Math.sqrt(Math.PI) / 4, 2) + Math.PI / 16)
+	var newAlpha = alpha * 0.71167 / Math.pow(2, res[5]); // Math.sqrt(Math.pow(1 - Math.sqrt(Math.PI) / 4, 2) + Math.PI / 16) / tamanho_da_secao
+	console.log("new alpha:", newAlpha * 180 / Math.PI);
 	if (depth < recMax)// && res[0].angleTo(groundTruth) > initialVector.angleTo(groundTruth))
 		mainMethod(mask, mv, groundTruth, res[0].clone(), objectPosition, newAlpha, opAlpha, origOpacity, debug, v3len, rho, theta, subMax, recMax, depth + 1);
 	else
 	{
 		shadowPlane.material.opacity = origOpacity;
-		var endTime = performance.now();
 		var str = "";
-		str += "IoU: " + getRenderValue(objectPosition, res[0].clone().multiplyScalar(5).add(objectPosition), mask).toFixed(5) + "\n";
+		console.log("IoU: 0," + getRenderValue(objectPosition, res[0].clone().multiplyScalar(5).add(objectPosition), mask).toFixed(5).substring(2));
+/*
 		str += "Angle: " + (res[0].angleTo(groundTruth) * 180 / Math.PI).toFixed(3) + "°\n";
 		str += "Found vector: " + res[0].x + " " + res[0].y + " " + res[0].z + "\n";
 		str += "Best vector: " + maxVec.x + " " + maxVec.y + " " + maxVec.z + "\n";
-		console.log(str);
+*/
 /*
 		var element = document.createElement('a');
 		element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(str));
@@ -557,50 +565,10 @@ function mainMethod(mask, mv, groundTruth, initialVector, objectPosition, alpha,
 }
 
 
-function colorScale(val, minVal, maxVal)
-{
-	var r, g, b, color = (val - minVal) / (maxVal - minVal);
-	if (color <= 0.25)
-	{
-		r =   0;
-		g = 255 * color * 4;
-		b = 255;
-	}
-	else if (color <= 0.5)
-	{
-		r =   0;
-		g = 255;
-		b = 255 - 255 * (color - 0.25) * 4;
-	}
-	else if (color <= 0.75)
-	{
-		r = 255 * (color - 0.5) * 4;
-		g = 255;
-		b =   0;
-	}
-	else
-	{
-		r = 255;
-		g = 255 - 255 * (color - 0.75) * 4;
-		b =   0;
-	}
-	r = Math.floor(r).toString(16);
-	g = Math.floor(g).toString(16);
-	b = Math.floor(b).toString(16);
-	if (r.length == 1)
-		r = "0" + r;
-	if (g.length == 1)
-		g = "0" + g;
-	if (b.length == 1)
-		b = "0" + b;
-	return "#" + r + g + b;
-}
-
-
 //
 function searchWithinCap(extra, best, mask, subMax, map, ii, jj, ni, nj, ori, v0, debug, rec, maxRec, opAlpha, ogAlpha, alpha, beta = Math.PI, theta = 0, p0 = v0.clone(), prev = 0, depth = 1, path = [])
 {
-	console.log("Searching cap! Depth: " + depth.toString() + "; vector: [" + p0.x.toFixed(3) + ", " + p0.y.toFixed(3) + ", " + p0.z.toFixed(3) + "]; previous best IoU: " + getRenderValue(ori, p0.clone().multiplyScalar(5).add(ori), mask).toFixed(5));
+	//console.log("Searching cap! Depth: " + depth.toString() + "; vector: [" + p0.x.toFixed(3) + ", " + p0.y.toFixed(3) + ", " + p0.z.toFixed(3) + "]; previous best IoU: " + getRenderValue(ori, p0.clone().multiplyScalar(5).add(ori), mask).toFixed(5));
 	var p = [];
 
 	if (depth == 1)
@@ -685,7 +653,7 @@ function searchWithinCap(extra, best, mask, subMax, map, ii, jj, ni, nj, ori, v0
 		t0f = t0;
 		t1f = t1;
 
-		var area = (r1 * r1 - r0 * r0) * Math.PI * (Math.abs(t1 - t0) / (2 * Math.PI));
+		//var area = (r1 * r1 - r0 * r0) * Math.PI * (Math.abs(t1 - t0) / (2 * Math.PI));
 		r0 = Math.round(r0 / ii);
 		r1 = Math.round(r1 / ii);
 		t0 = Math.round(t0 / jj);
@@ -769,13 +737,14 @@ function searchWithinCap(extra, best, mask, subMax, map, ii, jj, ni, nj, ori, v0
 		}
 		r0++;
 		t0++;
-		var mr, mt, cm = 0;
+		var mr, mt, cm = 0, area = 0;
 		if (t0 > t1)
 		{
 			for (var j = r0; j <= r1; j++)
 			{
 				for (var k = 0; k < t1; k++)
 				{
+					area++;
 					if (map[j][k][1] > cm)
 					{
 						cm = map[j][k][1];
@@ -785,6 +754,7 @@ function searchWithinCap(extra, best, mask, subMax, map, ii, jj, ni, nj, ori, v0
 				}
 				for (var k = t0 + 1; k < nj; k++)
 				{
+					area++;
 					if (map[j][k][1] > cm)
 					{
 						cm = map[j][k][1];
@@ -800,6 +770,7 @@ function searchWithinCap(extra, best, mask, subMax, map, ii, jj, ni, nj, ori, v0
 			{
 				for (var k = t0; k <= t1; k++)
 				{
+					area++;
 					if (map[j][k][1] > cm)
 					{
 						cm = map[j][k][1];
@@ -809,7 +780,13 @@ function searchWithinCap(extra, best, mask, subMax, map, ii, jj, ni, nj, ori, v0
 				}
 			}
 		}
-		list.push([p[i], val * lMax, i, ar, at, mr, mt, r0f, r1f, t0f, t1f]);
+		list.push([p[i], val * lMax / area, i, ar, at, mr, mt, r0f, r1f, t0f, t1f]);
+		if (debug)
+		{
+			//console.log("float:", r0f, r1f, t0f * 180 / Math.PI, t1f * 180 / Math.PI);
+			//console.log("int:", r0, r1, t0, t1);
+			//console.log("val:", val / area, "val * max:", val * lMax / area);
+		}
 	}
 	list.sort(function(a, b)
 	{
@@ -839,14 +816,15 @@ function searchWithinCap(extra, best, mask, subMax, map, ii, jj, ni, nj, ori, v0
 //	path.push([parseInt(list[0][3]), parseInt(list[0][4]), parseInt(list[0][5]), parseInt(list[0][6]), depth]);
 
 	if (debug)
-		drawCap(map, best, ni, nj, rec, maxRec, depth, subMax, ogAlpha, path);
+		drawCap(map, ni, nj, rec, maxRec, depth, subMax, ogAlpha, path);
 
-	if (depth > subMax || prev >= res[list[0][2]]) // se nao houver candidato melhor que o anterior
+	if (depth >= subMax)// || prev > res[list[0][1]]) // se nao houver candidato melhor que o anterior
 	{
-		if (res[list[0][2]] > best) // se o melhor candidato for melhor que o inicial
-			return [(depth > subMax ? list[0][0] : p0), list[0][3], list[0][4], path, list[0][1]];
+		return [list[0][0], list[0][3], list[0][4], path, list[0][1], depth - 1];
+		if (res[list[0][1]] > best) // se o melhor candidato for melhor que o inicial
+			return [(depth >= subMax ? list[0][0] : p0), list[0][3], list[0][4], path, list[0][1], depth - 1];
 		else
-			return [v0, 0, 0, [], 0];
+			return [v0, 0, 0, [], 0, depth - 1];
 	}
 	else
 		return searchWithinCap(extra, best, mask, subMax, map, ii, jj, ni, nj, ori, v0, debug, rec, maxRec, opAlpha, ogAlpha, alpha / 2, beta / 2, theta, list[0][0], res[list[0][2]], depth + 1, path);
@@ -923,7 +901,47 @@ function getRenderValue(v0, v1, mask)
 }
 
 
-function drawCap(ii, mv, nr, nt, rec, maxRec, div, maxDiv, alpha, path = [], pxRes = 4)
+function colorScale(val, minVal, maxVal)
+{
+	var r, g, b, color = (val - minVal) / (maxVal - minVal);
+	if (color <= 0.25)
+	{
+		r =   0;
+		g = 255 * color * 4;
+		b = 255;
+	}
+	else if (color <= 0.5)
+	{
+		r =   0;
+		g = 255;
+		b = 255 - 255 * (color - 0.25) * 4;
+	}
+	else if (color <= 0.75)
+	{
+		r = 255 * (color - 0.5) * 4;
+		g = 255;
+		b =   0;
+	}
+	else
+	{
+		r = 255;
+		g = 255 - 255 * (color - 0.75) * 4;
+		b =   0;
+	}
+	r = Math.floor(r).toString(16);
+	g = Math.floor(g).toString(16);
+	b = Math.floor(b).toString(16);
+	if (r.length == 1)
+		r = "0" + r;
+	if (g.length == 1)
+		g = "0" + g;
+	if (b.length == 1)
+		b = "0" + b;
+	return "#" + r + g + b;
+}
+
+
+function drawCap(ii, nr, nt, rec, maxRec, div, maxDiv, alpha, path = [], pxRes = 4)
 {
 	var minVal = 1;
 	var maxVal = 0;
@@ -963,8 +981,8 @@ function drawCap(ii, mv, nr, nt, rec, maxRec, div, maxDiv, alpha, path = [], pxR
 			var rho, theta;
 			for (var i = 0; i < path.length; i++)
 			{
-				var r0 = path[i][0] * 240;
-				var r1 = path[i][1] * 240;
+				var r0 = Math.max(path[i][0] * 240, 0);
+				var r1 = Math.max(path[i][1] * 240, 0);
 				var t0 = -path[i][2];
 				var t1 = -path[i][3];
 				//console.log(x, y, r, a * 180 / Math.PI);
@@ -1038,6 +1056,7 @@ function drawCap(ii, mv, nr, nt, rec, maxRec, div, maxDiv, alpha, path = [], pxR
 				ctx.fillStyle = colorScale(i, 62, 450);
 				ctx.fillRect(550, 512 - i, 20, 1);
 			}
+			var mv = ii[0][0][1];
 			ctx.font = "bolder 14px Courier New";
 			ctx.fillStyle = "#ff0000";
 			ctx.fillText(maxVal.toFixed(3), 550,  32);
@@ -1051,7 +1070,7 @@ function drawCap(ii, mv, nr, nt, rec, maxRec, div, maxDiv, alpha, path = [], pxR
 			var element = document.createElement('a');
 			element.style.display = 'none';
 			// nome_abertura_divisoes_recursoes_ncalota_nsubdivisao
-			element.setAttribute('download', "p" + (fc > 8 ? "0" : "") + (fc + 1).toString() + "_" + (alpha * 180 / Math.PI).toFixed(3) + "_" + maxRec.toString() + "_" + maxDiv.toString() + "_" + rec.toString() + "_" + div.toString() + ".png");
+			element.setAttribute('download', "p" + (fc < 8 ? "0" : "") + (fc + 1).toString() + "_" + (alpha * 180 / Math.PI).toFixed(3) + "_" + maxRec.toString() + "_" + maxDiv.toString() + "_" + rec.toString() + "_" + div.toString() + ".png");
 			element.setAttribute('href', canvas.toDataURL("image/png").replace("image/png", "image/octet-stream"));
 			document.body.appendChild(element);
 			element.click();
@@ -1083,12 +1102,18 @@ function beginUserInput(debug = true, requestInputVector = false)
 
 		var list = inpt.split(" ");
 
+		console.log("Start!");
+
 		vObj.visible         = false;
 		vObjMask.visible     = true;
 		wPlane.visible       = true;
 
-		// list, debug, inputVector, threshold, rho, theta, alpha, subMax, recMax
-		beginMethod(list, debug, inputVector, 10, 129, 513, 6, 1, 1);
+		// list, debug, inputVector, threshold, rho, theta, alpha, recMax, subMax
+		//beginMethod(list, debug, inputVector, 10, 129, 513, i * 3, j, k);
+		for (var i = 1; i <= 3; i++)
+			for (var j = 1; j <= 3; j++)
+				for (var k = 1; k <= 3; k++)
+					beginMethod(list, debug, inputVector, 10, 257, 513, i * 3, j, k);
 
 		vObj.visible         = true;
 		vObjMask.visible     = false;
