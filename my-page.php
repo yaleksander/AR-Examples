@@ -16,10 +16,11 @@
 	<script src="threex/threex-armarkercontrols.js"></script>
 </head>
 
-<body style='margin : 0px; overflow: hidden; font-family: Monospace;'>
+<body style='margin : 0px; overflow: hidden; font-family: Monospace;' onload="onPageLoad()">
 
 	<a id="files" style="display: none"><?php echo implode(";", array_diff(scandir("my-images/current"), array(".", "..", "contours.txt")));?></a>
 	<a id="contours" style="display: none"><?php echo file_get_contents("my-images/current/contours.txt");?></a>
+	<a id="vectors" style="display: none"><?php echo file_get_contents("my-images/current/vecs.txt");?></a>
 	<a id="text" style="color: red"></a>
 	<a id="exportLink" href="#"></a>
 	<script src="my-script.js"></script>

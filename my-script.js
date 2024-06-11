@@ -3,7 +3,7 @@ var arToolkitSource, arToolkitContext;
 var camera, renderer, rend, mainScene, scene;
 var emptyObj, vObj, vObjMask, light, origLight, shadowPlane, wPlane, dPlane;
 var adjustX, adjustZ;
-var files, fc, done = false;
+var files, fc, contours, vectors, done = false;
 var globalResult = "";
 
 var ray    = new THREE.Raycaster();
@@ -11,9 +11,6 @@ var mouse  = new THREE.Vector2();
 var loader = new THREE.TextureLoader();
 
 var planeSize, sPlaneSize, sPlaneSegments, vObjHeight, vObjRatio;
-
-initialize();
-animate();
 
 function onResize()
 {
@@ -38,8 +35,8 @@ function initialize()
 
 	// fov (degrees), aspect, near, far
 	//camera = new THREE.PerspectiveCamera(32, 16.0 / 9.0, 1, 1000);
-	//camera = new THREE.PerspectiveCamera(32, 1, 1, 1000);
-	camera = new THREE.Camera();
+	camera = new THREE.PerspectiveCamera(90, 1, 0.1, 1000);
+	//camera = new THREE.Camera();
 	camera.isPerspectiveCamera = true; // enable ray casting
 	mainScene.add(camera);
 	new THREE.Scene().add(camera); // magically fixes camera and scene position, do not remove
@@ -74,8 +71,12 @@ function initialize()
 	 *********************************************************************************************/
 
 	fc = 0;
+	var adv = parseInt(new URL(window.location.href).searchParams.get("s"));
+	if (!isNaN(adv))
+		setTimeout(nextScene, 3000, adv);
 	files = document.getElementById("files").innerHTML.split(";");
 	contours = document.getElementById("contours").innerHTML.split("\n");
+	vectors = document.getElementById("vectors").innerHTML.split("\n");
 
 	arToolkitSource = new THREEx.ArToolkitSource({
 		//sourceType: 'webcam'
@@ -120,7 +121,7 @@ function initialize()
 	sPlaneSize     =  15.00;
 	sPlaneSegments = 300.00;
 	vObjHeight     =   1.20;
-	vObjRatio      =   1.00;
+	vObjRatio      =   1.20;
 	adjustX        =   0.00;
 	adjustZ        =   0.00;
 
@@ -313,11 +314,14 @@ function getMidPoints(p, t, r) // p: pontos, t: tolerancia, r: recursoes
 }
 
 
-function beginMethod(list, debug, inputVector, threshold, rho, theta, alpha, recMax, subMax)
+function beginMethod(div, list, debug, inputVector, threshold, rho, theta, alpha, recMax, subMax)
 {
-	console.log("Parameters:", alpha, recMax, subMax);
+	if (recMax == 0)
+		globalResult += "0 0 0";
+	else
+		globalResult += alpha.toFixed(1) + " " + recMax.toString() + " " + subMax.toString();
 
-	var groundTruth = new THREE.Vector3(inputVector[0], inputVector[1], inputVector[2]);
+	var groundTruth = new THREE.Vector3(inputVector[0], inputVector[1], inputVector[2]).normalize();
 
 	var startTime = performance.now();
 	var origOpacity = shadowPlane.material.opacity;
@@ -327,43 +331,44 @@ function beginMethod(list, debug, inputVector, threshold, rho, theta, alpha, rec
 	var v2 = [];
 	var v3 = [];
 
-	// adquire conjunto de pontos a partir dos vertices do objeto virtual
-	var position = vObj.geometry.attributes.position;
-	for (var i = 0; i < position.count; i++)
-		v1.push(new THREE.Vector3().fromBufferAttribute(position, i));
-	getMidPoints(v1, threshold, 1);
-
-	// adquire conjunto de pontos a partir dos triangulos da geometria
-	var pos = vObj.geometry.toNonIndexed().attributes.position;
-	for (var i = 0; i < pos.count; i += 3)
+	if (threshold >= 0)
 	{
-		var t1 = new THREE.Vector3().fromBufferAttribute(pos, i);
-		var t2 = new THREE.Vector3().fromBufferAttribute(pos, i + 1);
-		var t3 = new THREE.Vector3().fromBufferAttribute(pos, i + 2);
-		v1.push(new THREE.Vector3((t1.x + t2.x + t3.x) / 3, (t1.y + t2.y + t3.y) / 3, (t1.z + t2.z + t3.z) / 3));
-	}
+		// adquire conjunto de pontos a partir dos vertices do objeto virtual
+		var position = vObj.geometry.attributes.position;
+		for (var i = 0; i < position.count; i++)
+			v1.push(new THREE.Vector3().fromBufferAttribute(position, i));
+		getMidPoints(v1, threshold, 1);
 
-	// passa os pontos adquiridos para valores globais
-	for (var i = 0; i < v1.length; i++)
-	{
-		v1[i].x += vObj.position.x;
-		v1[i].y += vObj.position.y;
-		v1[i].z += vObj.position.z;
-
-		// elimina os pontos abaixo de 25% da altura do objeto virtual
-		//if (v1[i].y < vObjHeight / 4)
-		//	v1.splice(i--, 1);
-/*
-		if (debug)
+		// adquire conjunto de pontos a partir dos triangulos da geometria
+		var pos = vObj.geometry.toNonIndexed().attributes.position;
+		for (var i = 0; i < pos.count; i += 3)
 		{
-			var newObj = new THREE.Mesh(new THREE.SphereGeometry(0.05), new THREE.MeshBasicMaterial({ color: 0x0000ff }));
-			newObj.position.set(v1[i].x, v1[i].y, v1[i].z);
-			vDebug.push(newObj.clone());
+			var t1 = new THREE.Vector3().fromBufferAttribute(pos, i);
+			var t2 = new THREE.Vector3().fromBufferAttribute(pos, i + 1);
+			var t3 = new THREE.Vector3().fromBufferAttribute(pos, i + 2);
+			v1.push(new THREE.Vector3((t1.x + t2.x + t3.x) / 3, (t1.y + t2.y + t3.y) / 3, (t1.z + t2.z + t3.z) / 3));
 		}
-*/
-	}
 
-	//console.log("get floor points");
+		// passa os pontos adquiridos para valores globais
+		for (var i = 0; i < v1.length; i++)
+		{
+			v1[i].x += vObj.position.x;
+			v1[i].y += vObj.position.y;
+			v1[i].z += vObj.position.z;
+
+			// elimina os pontos abaixo de 25% da altura do objeto virtual
+			//if (v1[i].y < vObjHeight / 4)
+			//	v1.splice(i--, 1);
+			if (debug)
+			{
+				var newObj = new THREE.Mesh(new THREE.SphereGeometry(0.05), new THREE.MeshBasicMaterial({ color: 0x0000ff }));
+				newObj.position.set(v1[i].x, v1[i].y, v1[i].z);
+				scene.add(newObj.clone());
+			}
+		}
+	}
+	else
+		v1.push(new THREE.Vector3(vObj.position.x, vObj.position.y + vObjHeight * vObjRatio / 2, vObj.position.z));
 
 	var w    = renderer.domElement.clientWidth;
 	var h    = renderer.domElement.clientHeight;
@@ -372,7 +377,6 @@ function beginMethod(list, debug, inputVector, threshold, rho, theta, alpha, rec
 	var m    = ((w > h) ? h : w) / 256.0;
 
 	// adquire conjunto de pontos a partir dos pontos 2d da sombra
-	//v1 = [vObj.position];
 	var k = 0;
 	while (k < list.length)//2
 	{
@@ -385,33 +389,29 @@ function beginMethod(list, debug, inputVector, threshold, rho, theta, alpha, rec
 		var i = ray.intersectObject(shadowPlane);
 		if (i.length > 0)
 			v2.push(new THREE.Vector3((i[0].uv.x - 0.5) * sPlaneSize + shadowPlane.position.x, shadowPlane.position.y, (0.5 - i[0].uv.y) * sPlaneSize + shadowPlane.position.z));
+		if (threshold < 0)
+			break;
 	}
-
-	//console.log("shrink list");
 
 	// reduz o tamanho da segunda lista
 	for (var i = 0; i < v2.length - 1; i++)
 		for (var j = i + 1; j < v2.length; j++)
 			if (v2[i].distanceTo(v2[j]) < threshold)
 				v2.splice(j--, 1);
-	//console.log(v2.length);
-/*
 	if (debug)
 	{
-		for (var i = 0; i < v2.length; i++)
+		for (var i = 0; i < v2.length - 1; i++)
 		{
 			var newObj = new THREE.Mesh(new THREE.SphereGeometry(0.05), new THREE.MeshBasicMaterial({ color: 0x00ff00 }));
 			newObj.position.set(v2[i].x, v2[i].y, v2[i].z);
-			vDebug.push(newObj.clone());
+			scene.add(newObj.clone());
 		}
 	}
-*/
-	//console.log("combine");
 
 	// liga os pontos
 	for (var i = 0; i < v1.length; i++)
 	{
-		for (var j = 0; j < v2.length; j++)
+		for (var j = 0; j < 1/*v2.length*/; j++)
 		{
 			var aux = v1[i].clone().sub(v2[j].clone());
 			var v   = aux.clone().normalize().multiplyScalar(3 * vObjRatio * vObjHeight).add(v1[i].clone()); // quanto maior o escalar, mais longe fica a fonte de luz
@@ -419,15 +419,12 @@ function beginMethod(list, debug, inputVector, threshold, rho, theta, alpha, rec
 		}
 	}
 
-	//console.log("sort");
-
 	// ordena a lista
 	v3.sort(function(a, b)
 	{
 		return a[4] - b[4];
 	});
 
-	//console.log("compare");
 	var mask = [];
 	for (var i = 0; i < 65536; i++)
 		mask.push(1);
@@ -465,102 +462,95 @@ function beginMethod(list, debug, inputVector, threshold, rho, theta, alpha, rec
 	var v5 = v3[k][2].clone().sub(v3[k][1]).normalize();
 	alpha *= Math.PI / 180;
 
-	mainMethod(mask, mv, groundTruth, v5.normalize(), v3[k][1], alpha, alpha, origOpacity, debug, v3.length, rho, theta, subMax, recMax);
+	mainMethod(div, mask, mv, groundTruth, v5.normalize(), v3[k][1], alpha, alpha, debug, v3.length, rho, theta, subMax, recMax);
+
+	rend.dispose();
+	rend.forceContextLoss();
+	rend.context = null;
+	rend.domElement = null;
+	rend = null;
+	delete rend;
 
 	var endTime = performance.now();
 	var dt = endTime - startTime;
 	var minutes = Math.floor(dt / 60000);
 	var seconds = Math.floor((dt - minutes * 60000) / 1000);
 	var miliseconds = dt - minutes * 60000 - seconds * 1000;
-	console.log("00:" + (minutes > 9 ? "" : "0") + minutes + ":" + (seconds > 9 ? "" : "0") + seconds + "," + (miliseconds > 99 ? "" : (miliseconds > 9 ? "0" : "00")) +  + Math.round(miliseconds));
+	globalResult += " 00:" + (minutes > 9 ? "" : "0") + minutes + ":" + (seconds > 9 ? "" : "0") + seconds + "." + (miliseconds > 99 ? "" : (miliseconds > 9 ? "0" : "00")) + Math.round(miliseconds) + "\n";
+	shadowPlane.material.opacity = origOpacity;
 	done = true;
 }
 
 
-function mainMethod(mask, mv, groundTruth, initialVector, objectPosition, alpha, opAlpha, origOpacity, debug, v3len, rho = 257, theta = 257, subMax = 1, recMax = 1, depth = 1)
+function mainMethod(div, mask, mv, groundTruth, initialVector, objectPosition, alpha, opAlpha, debug, v3len, rho = 257, theta = 257, subMax = 1, recMax = 1, depth = 1)
 {
-	var v5 = initialVector.normalize();
-	//console.log("Main method! Depth: " + depth.toString() + "; vector: [" + v5.x.toFixed(3) + ", " + v5.y.toFixed(3) + ", " + v5.z.toFixed(3) + "]; previous IoU: " + getRenderValue(objectPosition, v5.clone().multiplyScalar(5).add(objectPosition), mask).toFixed(5) + "; alpha: " + (alpha * 180 / Math.PI).toFixed(3));
-
-	// cria o mapa
-	//console.log("map");
-	var ni = rho;
-	var nj = theta;
-	var si = alpha / ni;
-	var sj = Math.PI * 2 / nj;
-	var v7 = new THREE.Vector3(0, 1, 0).cross(v5);
-	var v8 = v5.clone();
-	var vl = [];
-	var maxRenderVal = 0;
-	var maxVec;// = v8.clone().multiplyScalar(5).add(objectPosition);
-	for (var i = 0; i < ni; i++)
+	var v5 = initialVector.normalize(), maxVec, maxRenderVal;
+	if (recMax == 0)
 	{
-		v8.applyAxisAngle(v7, si);
-		//vl.push([Math.PI * (Math.pow((i + 1) * si / ni, 2) - Math.pow(i * si / ni, 2)) * (sj / nj) * 1000000000]);
-		vl.push([]);
-		for (var j = 0; j < nj; j++)
-		{
-			v8.applyAxisAngle(v5, sj);
-			var v9 = v8.clone().multiplyScalar(5).add(objectPosition);
-			var renderVal = getRenderValue(objectPosition, v9, mask);
-			vl[i].push([v9, renderVal, (i / ni) * Math.cos(j * sj), (i / ni) * Math.sin(j * sj) * -1, 0]);
-			if (renderVal > maxRenderVal)
-			{
-				maxVec = v9;
-				maxRenderVal = renderVal;
-			}
-		}
+		maxVec = v5;
+		maxRenderVal = getRenderValue(objectPosition, v5.clone().multiplyScalar(5).add(objectPosition), mask);
 	}
-
-	// calcula a imagem integral
-	//console.log("integral");
-	vl[0][0][4] = vl[0][0][1];
-	for (var i = 1; i < vl[0].length; i++)
-		vl[0][i][4] = vl[0][i - 1][4] + vl[0][i][1];
-	for (var i = 1; i < vl.length; i++)
-	{
-		vl[i][0][4] = vl[i - 1][0][4] + vl[i][0][1];
-		for (var j = 1; j < vl[i].length; j++)
-			vl[i][j][4] = vl[i][j][1] + vl[i][j - 1][4] + vl[i - 1][j][4] - vl[i - 1][j - 1][4];
-	}
-
-	// encontra o melhor ponto da calota esferica
-	//console.log("cap");
-	var div = false;
-	var res = searchWithinCap(div, mv, mask, subMax, vl, si, sj, ni, nj, objectPosition, v5, debug, depth, recMax, alpha, opAlpha, alpha);
-	var v6 = res[0].clone().multiplyScalar(5).add(objectPosition);
-	light.position.set(v6.x, v6.y, v6.z);
-
-	vObj.material.opacity = 0.75;
-	vObj.material.transparent = true;
-
-	if (debug)
-		drawCap(vl, rho, theta, depth, recMax, 0, subMax, opAlpha);
-
-	var newAlpha = alpha * 0.71167 / Math.pow(2, res[5]); // Math.sqrt(Math.pow(1 - Math.sqrt(Math.PI) / 4, 2) + Math.PI / 16) / tamanho_da_secao
-	console.log("new alpha:", newAlpha * 180 / Math.PI);
-	if (depth < recMax)// && res[0].angleTo(groundTruth) > initialVector.angleTo(groundTruth))
-		mainMethod(mask, mv, groundTruth, res[0].clone(), objectPosition, newAlpha, opAlpha, origOpacity, debug, v3len, rho, theta, subMax, recMax, depth + 1);
 	else
 	{
-		shadowPlane.material.opacity = origOpacity;
-		var str = "";
-		console.log("IoU: 0," + getRenderValue(objectPosition, res[0].clone().multiplyScalar(5).add(objectPosition), mask).toFixed(5).substring(2));
-/*
-		str += "Angle: " + (res[0].angleTo(groundTruth) * 180 / Math.PI).toFixed(3) + "°\n";
-		str += "Found vector: " + res[0].x + " " + res[0].y + " " + res[0].z + "\n";
-		str += "Best vector: " + maxVec.x + " " + maxVec.y + " " + maxVec.z + "\n";
-*/
-/*
-		var element = document.createElement('a');
-		element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(str));
-		element.setAttribute('download', 'output.txt');
-		element.style.display = 'none';
-		document.body.appendChild(element);
-		element.click();
-		document.body.removeChild(element);
-*/
-		globalResult = "";
+		// cria o mapa
+		var ni = rho;
+		var nj = theta;
+		var si = alpha / ni;
+		var sj = Math.PI * 2 / nj;
+		var v7 = new THREE.Vector3(0, 1, 0).cross(v5);
+		var v8 = v5.clone();
+		var vl = [];
+		maxRenderVal = 0;
+		maxVec = v8.clone();
+		for (var i = 0; i < ni; i++)
+		{
+			v8.applyAxisAngle(v7, si);
+			vl.push([]);
+			for (var j = 0; j < nj; j++)
+			{
+				v8.applyAxisAngle(v5, sj);
+				var v9 = v8.clone().multiplyScalar(5).add(objectPosition);
+				var renderVal = getRenderValue(objectPosition, v9, mask);
+				vl[i].push([v9, renderVal, (i / ni) * Math.cos(j * sj), (i / ni) * Math.sin(j * sj) * -1, 0]);
+				if (renderVal > maxRenderVal)
+				{
+					maxVec = v8.clone();
+					maxRenderVal = renderVal;
+				}
+			}
+		}
+
+		if (debug)
+			drawCap(vl, rho, theta, depth, recMax, 0, subMax, opAlpha);
+	}
+
+	if (depth < recMax)
+	{
+		// calcula a imagem integral
+		vl[0][0][4] = vl[0][0][1];
+		for (var i = 1; i < vl[0].length; i++)
+			vl[0][i][4] = vl[0][i - 1][4] + vl[0][i][1];
+		for (var i = 1; i < vl.length; i++)
+		{
+			vl[i][0][4] = vl[i - 1][0][4] + vl[i][0][1];
+			for (var j = 1; j < vl[i].length; j++)
+				vl[i][j][4] = vl[i][j][1] + vl[i][j - 1][4] + vl[i - 1][j][4] - vl[i - 1][j - 1][4];
+		}
+
+		// encontra o melhor ponto da calota esferica
+		var res = searchWithinCap(div, mv, mask, subMax, vl, si, sj, ni, nj, objectPosition, v5, debug, depth, recMax, alpha, opAlpha, alpha);
+
+		var newAlpha = res[6];
+		mainMethod(div, mask, mv, groundTruth, res[0].clone(), objectPosition, newAlpha, opAlpha, debug, v3len, rho, theta, subMax, recMax, depth + 1);
+	}
+	else
+	{
+		var v6 = maxVec.clone().multiplyScalar(5).add(objectPosition);
+		light.position.set(v6.x, v6.y, v6.z);
+		vObj.material.opacity = 0.75;
+		vObj.material.transparent = true;
+		globalResult += " " + maxRenderVal.toFixed(5) + " " + Math.abs((maxVec.angleTo(groundTruth) * 180 / Math.PI) - 5).toFixed(3);
+		//console.log(maxVec.x.toString() + " " + maxVec.y.toString() + " " + maxVec.z.toString());
 	}
 }
 
@@ -568,16 +558,15 @@ function mainMethod(mask, mv, groundTruth, initialVector, objectPosition, alpha,
 //
 function searchWithinCap(extra, best, mask, subMax, map, ii, jj, ni, nj, ori, v0, debug, rec, maxRec, opAlpha, ogAlpha, alpha, beta = Math.PI, theta = 0, p0 = v0.clone(), prev = 0, depth = 1, path = [])
 {
-	//console.log("Searching cap! Depth: " + depth.toString() + "; vector: [" + p0.x.toFixed(3) + ", " + p0.y.toFixed(3) + ", " + p0.z.toFixed(3) + "]; previous best IoU: " + getRenderValue(ori, p0.clone().multiplyScalar(5).add(ori), mask).toFixed(5));
 	var p = [];
 
 	if (depth == 1)
 	{
 		var axis = new THREE.Vector3(0, 1, 0).cross(v0).normalize();
-		for (var i = 0; i < 8; i++)
+		for (var i = 0; i < (extra ? 8 : 4); i++)
 		{
 			p.push(p0.clone().applyAxisAngle(axis, alpha / 2));
-			p[i].applyAxisAngle(v0, i * Math.PI / 2 + Math.PI / (extra ? 8 : 4));
+			p[i].applyAxisAngle(v0, i * Math.PI / (extra ? 4 : 2) + Math.PI / 4);
 		}
 	}
 	else
@@ -602,6 +591,10 @@ function searchWithinCap(extra, best, mask, subMax, map, ii, jj, ni, nj, ori, v0
 			p[7].applyAxisAngle(axis,  alpha / 2);
 		}
 	}
+	var dist = [];
+	for (var i = 0; i < (extra ? 8 : 4); i++)
+		dist.push(p0.angleTo(p[i]));
+	var distMax = Math.max(dist[0], dist[1], dist[2], dist[3]);
 
 	var list = [];
 	var res = [];
@@ -780,13 +773,8 @@ function searchWithinCap(extra, best, mask, subMax, map, ii, jj, ni, nj, ori, v0
 				}
 			}
 		}
-		list.push([p[i], val * lMax / area, i, ar, at, mr, mt, r0f, r1f, t0f, t1f]);
-		if (debug)
-		{
-			//console.log("float:", r0f, r1f, t0f * 180 / Math.PI, t1f * 180 / Math.PI);
-			//console.log("int:", r0, r1, t0, t1);
-			//console.log("val:", val / area, "val * max:", val * lMax / area);
-		}
+		area = Math.abs(r1 - r0 + 1) * (1 + Math.abs(t0 > t1 ? nj - t0 + t1 : t1 - t0));
+		list.push([p[i], val /** lMax*/ / area, i, ar, at, mr, mt, r0f, r1f, t0f, t1f, area]);
 	}
 	list.sort(function(a, b)
 	{
@@ -820,11 +808,13 @@ function searchWithinCap(extra, best, mask, subMax, map, ii, jj, ni, nj, ori, v0
 
 	if (depth >= subMax)// || prev > res[list[0][1]]) // se nao houver candidato melhor que o anterior
 	{
-		return [list[0][0], list[0][3], list[0][4], path, list[0][1], depth - 1];
+		return [list[0][0], list[0][3], list[0][4], path, list[0][1], depth - 1, distMax];
+/*
 		if (res[list[0][1]] > best) // se o melhor candidato for melhor que o inicial
-			return [(depth >= subMax ? list[0][0] : p0), list[0][3], list[0][4], path, list[0][1], depth - 1];
+			return [(depth >= subMax ? list[0][0] : p0), list[0][3], list[0][4], path, list[0][1], depth - 1, distMax];
 		else
-			return [v0, 0, 0, [], 0, depth - 1];
+			return [v0, 0, 0, [], 0, depth - 1, alpha];
+*/
 	}
 	else
 		return searchWithinCap(extra, best, mask, subMax, map, ii, jj, ni, nj, ori, v0, debug, rec, maxRec, opAlpha, ogAlpha, alpha / 2, beta / 2, theta, list[0][0], res[list[0][2]], depth + 1, path);
@@ -871,14 +861,14 @@ function getRenderValue(v0, v1, mask)
 			c11++;
 	}
 
-	var img1, img2;
+	var img1, img2, n = 0;
 	if (w > h)
 	{
 		img1 = ctx.getImageData(0, 0, pw, 256);
 		img2 = ctx.getImageData(cw - pw, 0, pw, 256);
 		n = pw * 256;
 	}
-	else
+	else if (h > w)
 	{
 		img1 = ctx.getImageData(0, 0, 256, ph);
 		img2 = ctx.getImageData(0, ch - ph, 256, ph);
@@ -892,6 +882,7 @@ function getRenderValue(v0, v1, mask)
 			c01++;
 	}
 
+	delete canvas;
 	var val = 0;
 	var uni = c00 + c01 + c10;
 	var ins = c00;
@@ -943,6 +934,30 @@ function colorScale(val, minVal, maxVal)
 
 function drawCap(ii, nr, nt, rec, maxRec, div, maxDiv, alpha, path = [], pxRes = 4)
 {
+	var aux = [];
+	for (var i = 0; i < 128; i++)
+	{
+		aux.push([]);
+		for (var j = 0; j < 512; j++)
+		{
+			var i0 = Math.floor(i * nr / 128);
+			var i1 = Math.min(i0 + 1, nr - 1);
+			var di0 = i * nr / 128.0 - i0;
+			var di1 = 1.0 - di0;
+			var j0 = Math.floor(j * nt / 512);
+			var j1 = Math.min(j0 + 1, nt - 1);
+			var dj0 = j * nt / 512.0 - j0;
+			var dj1 = 1.0 - dj0;
+			var v00 = ii[i0][j0][1];
+			var v01 = ii[i0][j1][1] - ii[i0][j0][1];
+			var v10 = ii[i1][j0][1] - ii[i0][j0][1];
+			var v11 = ii[i0][j0][1] - ii[i0][j1][1] - ii[i1][j0][1] + ii[i1][j1][1];
+			aux[i].push([0, v00 + v01 * di0 + v10 * dj0 + v11 * di0 * dj0, (i / 128) * Math.cos(j * Math.PI * 2 / 512), (i / 128) * Math.sin(j * Math.PI * 2 / 512) * -1, 0]);
+		}
+	}
+	nr = 128;
+	nt = 512;
+	ii = aux;
 	var minVal = 1;
 	var maxVal = 0;
 	for (var i = 0; i < nr; i++)
@@ -972,6 +987,32 @@ function drawCap(ii, nr, nt, rec, maxRec, div, maxDiv, alpha, path = [], pxRes =
 			}
 		}
 	}
+
+	var blur = 2;
+	var sum = 0;
+	var delta = 5;
+	var alpha_left = 1 / (2 * Math.PI * delta * delta);
+	var step = blur < 3 ? 1 : 2;
+	for (var y = -blur; y <= blur; y += step)
+	{
+		for (var x = -blur; x <= blur; x += step)
+		{
+			var weight = alpha_left * Math.exp(-(x * x + y * y) / (2 * delta * delta));
+			sum += weight;
+		}
+	}
+	var count = 0;
+	for (var y = -blur; y <= blur; y += step)
+	{
+		for (var x = -blur; x <= blur; x += step)
+		{
+			count++;
+			ctx.globalAlpha = alpha_left * Math.exp(-(x * x + y * y) / (2 * delta * delta)) / sum * blur;
+			ctx.drawImage(canvas,x,y);
+		}
+	}
+	ctx.globalAlpha = 1;
+
 	for (var i = 0; i < nr; i++)
 	{
 		for (var j = 0; j < nt; j++)
@@ -985,7 +1026,6 @@ function drawCap(ii, nr, nt, rec, maxRec, div, maxDiv, alpha, path = [], pxRes =
 				var r1 = Math.max(path[i][1] * 240, 0);
 				var t0 = -path[i][2];
 				var t1 = -path[i][3];
-				//console.log(x, y, r, a * 180 / Math.PI);
 				ctx.beginPath();
 				ctx.moveTo(r0 * Math.cos(t0) + 258, r0 * Math.sin(t0) + 258);
 				ctx.lineTo(r1 * Math.cos(t0) + 258, r1 * Math.sin(t0) + 258);
@@ -1067,11 +1107,11 @@ function drawCap(ii, nr, nt, rec, maxRec, div, maxDiv, alpha, path = [], pxRes =
 			ctx.fillText("initial",     580, 532 - 450 * ((mv - minVal) / (maxVal - minVal)));
 			ctx.fillText("est.",        580, 552 - 450 * ((mv - minVal) / (maxVal - minVal)));
 
-			var element = document.createElement('a');
-			element.style.display = 'none';
+			var element = document.createElement("a");
+			element.style.display = "none";
 			// nome_abertura_divisoes_recursoes_ncalota_nsubdivisao
-			element.setAttribute('download', "p" + (fc < 8 ? "0" : "") + (fc + 1).toString() + "_" + (alpha * 180 / Math.PI).toFixed(3) + "_" + maxRec.toString() + "_" + maxDiv.toString() + "_" + rec.toString() + "_" + div.toString() + ".png");
-			element.setAttribute('href', canvas.toDataURL("image/png").replace("image/png", "image/octet-stream"));
+			element.setAttribute("download", "r" + (fc < 9 ? "0" : "") + (fc + 1).toString() + "_" + (alpha * 180 / Math.PI).toFixed(3) + "_" + maxRec.toString() + "_" + maxDiv.toString() + "_" + rec.toString() + "_" + div.toString() + ".png");
+			element.setAttribute("href", canvas.toDataURL("image/png").replace("image/png", "image/octet-stream"));
 			document.body.appendChild(element);
 			element.click();
 			document.body.removeChild(element);
@@ -1080,9 +1120,8 @@ function drawCap(ii, nr, nt, rec, maxRec, div, maxDiv, alpha, path = [], pxRes =
 }
 
 
-function beginUserInput(debug = true, requestInputVector = false)
+function beginUserInput(debug = true, requestInputVector = false, repeat = false)
 {
-//	var inpt = prompt("Ponto 2D:");
 	var inpt = contours[fc];
 	if (inpt != "")
 	{
@@ -1098,26 +1137,55 @@ function beginUserInput(debug = true, requestInputVector = false)
 					return;
 		}
 		else
-			inputVector = ["0", "1", "0"];
+			inputVector = vectors[fc].split(" ");
 
 		var list = inpt.split(" ");
 
-		console.log("Start!");
+		vObj.visible     = false;
+		vObjMask.visible = true;
+		wPlane.visible   = true;
 
-		vObj.visible         = false;
-		vObjMask.visible     = true;
-		wPlane.visible       = true;
+		debug = true;
+		var threshold = 0.2;//-1;
+		var resR = 17;
+		var resT = 33;
+		var alphaList = [30];
+		var recList = [3];
+		var subList = [3];
+		beginMethod(true, list, debug, inputVector, threshold, resR, resT, 0, 0, 0);/*
+		for (var i = 0; i < alphaList.length; i++)
+		{
+			for (var j = 0; j < recList.length; j++)
+			{
+				if (recList[j] < 2)
+					beginMethod(true, list, debug, inputVector, threshold, resR, resT, alphaList[i], recList[j], 0);
+				else
+					for (var k = 0; k < subList.length; k++)
+						beginMethod(true, list, debug, inputVector, threshold, resR, resT, alphaList[i], recList[j], subList[k]);
+			}
+		}*/
+/*
+		var element = document.createElement('a');
+		element.setAttribute("href", "data:text/plain;charset=utf-8," + encodeURIComponent(globalResult));
+		element.setAttribute("download", "e" + (fc < 9 ? "0" : "") + (fc + 1).toString() + ".txt");
+		element.style.display = "none";
+		document.body.appendChild(element);
+		element.click();
+*/
+/*
+		renderer.render(mainScene, camera);
+		element.setAttribute("download", "e" + (fc < 9 ? "0" : "") + (fc + 1).toString() + ".png");
+		element.setAttribute("href", renderer.domElement.toDataURL("image/png").replace("image/png", "image/octet-stream"));
+		element.click();
+*/
+//		document.body.removeChild(element);
 
-		// list, debug, inputVector, threshold, rho, theta, alpha, recMax, subMax
-		//beginMethod(list, debug, inputVector, 10, 129, 513, i * 3, j, k);
-		for (var i = 1; i <= 3; i++)
-			for (var j = 1; j <= 3; j++)
-				for (var k = 1; k <= 3; k++)
-					beginMethod(list, debug, inputVector, 10, 257, 513, i * 3, j, k);
 
-		vObj.visible         = true;
-		vObjMask.visible     = false;
-		wPlane.visible       = false;
+		vObj.visible     = true;
+		vObjMask.visible = false;
+		wPlane.visible   = false;
+		if (repeat && fc < files.length)
+			window.open("my-page.php?s=" + (fc + 1).toString(), "_self");
 	}
 }
 
@@ -1133,17 +1201,11 @@ function onDocumentMouseDown(event)
 	switch (event.button)
 	{
 		case 0: // left
-			if (++fc >= files.length)
-				fc = 0;
-			//console.log(files[fc]);
-			arToolkitSource = new THREEx.ArToolkitSource({ sourceType: 'image', sourceUrl: 'my-images/current/' + files[fc] });
-			arToolkitSource.init(function onReady(){ onResize() });
-			light.visible = false;
-			update();
+			nextScene();
 			break;
 
 		case 1: // middle
-			beginUserInput();
+			beginUserInput(false);
 			break;
 	}
 }
@@ -1182,4 +1244,36 @@ function animate()
 	totalTime += deltaTime;
 	update();
 	render();
+}
+
+
+function nextScene(r = -1)
+{
+	if (r == 0)
+		setTimeout(beginUserInput, 5000, false, false, true);
+	else
+	{
+		if (++fc >= files.length)
+			fc = 0;
+		arToolkitSource = new THREEx.ArToolkitSource(
+		{
+			sourceType: 'image',
+			sourceUrl: 'my-images/current/' + files[fc]
+		});
+		arToolkitSource.init(function onReady()
+		{
+			onResize()
+		});
+		light.visible = false;
+		update();
+		if (r > 0)
+			setTimeout(nextScene, 3000, --r);
+	}
+}
+
+
+function onPageLoad()
+{
+	initialize();
+	animate();
 }
